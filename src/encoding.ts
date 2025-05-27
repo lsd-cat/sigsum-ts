@@ -20,7 +20,7 @@ export function hexToUint8Array(hex: string): Uint8Array {
 }
 
 export function Uint8ArrayToHex(uint8Array: Uint8Array): string {
-  return [...uint8Array].map(b => b.toString(16).padStart(2, "0")).join("");
+  return [...uint8Array].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 export function stringToUint8Array(str: string): Uint8Array {

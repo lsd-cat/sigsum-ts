@@ -1,4 +1,4 @@
-import { RawPublicKey, PublicKey, Signature } from "./types";
+import { PublicKey, RawPublicKey, Signature } from "./types";
 
 export async function importKey(rawKey: RawPublicKey): Promise<PublicKey> {
   const imported = await crypto.subtle.importKey(
@@ -6,7 +6,7 @@ export async function importKey(rawKey: RawPublicKey): Promise<PublicKey> {
     rawKey,
     "Ed25519",
     true,
-    ["verify"]
+    ["verify"],
   );
 
   if (!imported) {
@@ -19,7 +19,7 @@ export async function importKey(rawKey: RawPublicKey): Promise<PublicKey> {
 export async function verifySignature(
   key: PublicKey,
   signature: Signature,
-  message: Uint8Array
+  message: Uint8Array,
 ): Promise<boolean> {
   if (signature.length !== 64) {
     throw new Error("Signature must be 64 bytes for Ed25519.");
@@ -29,6 +29,6 @@ export async function verifySignature(
     { name: "Ed25519" },
     key,
     signature,
-    message
+    message,
   );
 }

@@ -5,13 +5,24 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest"
+    "test": "vitest",
+    "lint": "npx eslint . --fix && npx prettier --write ."
   },
-  "keywords": ["sigsum", "ed25519", "transparency", "browser", "typescript"],
+  "keywords": [
+    "sigsum",
+    "ed25519",
+    "transparency",
+    "browser",
+    "typescript"
+  ],
   "author": "Giulio B",
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.3.0",
     "vitest": "^1.2.0"
+  },
+  "dependencies": {
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "typescript-eslint": "^8.32.1"
   }
 }
