@@ -1,9 +1,12 @@
-import { PublicKey, RawPublicKey, Signature } from "./types";
+import { Uint8ArrayToBase64 } from "./encoding";
+import { KeyHash, PublicKey, RawPublicKey, Signature } from "./types";
 
-export async function importKey(rawKey: RawPublicKey): Promise<PublicKey> {
+export async function importKey(
+  rawPublicKey: RawPublicKey,
+): Promise<PublicKey> {
   const imported = await crypto.subtle.importKey(
     "raw",
-    rawKey,
+    rawPublicKey,
     "Ed25519",
     true,
     ["verify"],
@@ -31,4 +34,14 @@ export async function verifySignature(
     signature,
     message,
   );
+}
+
+export async function hashKey(publicKey: PublicKey): Promise<KeyHash> {
+  const rawPublicKey = (await crypto.subtle.exportKey(
+    "raw",
+    publicKey,
+  )) as RawPublicKey;
+  return Uint8ArrayToBase64(
+    await crypto.subtle.digest("SHA-256", rawPublicKey),
+  ) as KeyHash;
 }

@@ -1,5 +1,6 @@
-export function Uint8ArrayToBase64(uint8Array: Uint8Array): string {
-  const binary = String.fromCharCode(...uint8Array);
+export function Uint8ArrayToBase64(data: Uint8Array | ArrayBuffer): string {
+  const uint8 = data instanceof Uint8Array ? data : new Uint8Array(data);
+  const binary = String.fromCharCode(...uint8);
   return btoa(binary);
 }
 
@@ -26,4 +27,8 @@ export function Uint8ArrayToHex(uint8Array: Uint8Array): string {
 export function stringToUint8Array(str: string): Uint8Array {
   const encoder = new TextEncoder();
   return encoder.encode(str);
+}
+
+export function hexToBase64(hex: string): string {
+  return Uint8ArrayToBase64(hexToUint8Array(hex));
 }
