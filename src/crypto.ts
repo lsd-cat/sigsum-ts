@@ -4,6 +4,7 @@ import { Base64KeyHash, PublicKey, RawPublicKey, Signature } from "./types";
 export async function importKey(
   rawPublicKey: RawPublicKey,
 ): Promise<PublicKey> {
+  // crypto.subtle.importKey is guaranteed to succeed or throw an error
   const imported = await crypto.subtle.importKey(
     "raw",
     rawPublicKey,
@@ -11,10 +12,6 @@ export async function importKey(
     true,
     ["verify"],
   );
-
-  if (!imported) {
-    throw new Error("Failed to import public key.");
-  }
 
   return imported as PublicKey;
 }

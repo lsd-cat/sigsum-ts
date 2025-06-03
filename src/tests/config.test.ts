@@ -13,7 +13,7 @@ const witnesses = {
   mullvad: "15d6d0141543247b74bab3c1076372d9c894f619c376d64b29aa312cc00f61ad",
 };
 
-describe("Valid policy cases", () => {
+describe("config", () => {
   it("parses a complex policy correctly without nested groups", async () => {
     const text = `
         log ${log1} https://test.sigsum.org/barreleye
@@ -74,9 +74,7 @@ describe("Valid policy cases", () => {
     const subKs = quorum.subQuorums.map((q: any) => q.k).sort();
     expect(subKs).toEqual([2, 2]);
   });
-});
 
-describe("Malformed policy cases", () => {
   it("fails on unknown keyword", async () => {
     const text = `
       log ${log1}
