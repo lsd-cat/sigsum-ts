@@ -8,7 +8,7 @@ import {
   QuorumKofN,
   QuorumSingle,
 } from "./policy";
-import { KeyHash, RawPublicKey } from "./types";
+import { Base64KeyHash, RawPublicKey } from "./types";
 
 export const CONFIG_NONE = "none";
 
@@ -22,14 +22,14 @@ class PolicyImpl implements Policy {
   witnesses: EntityMap = new Map();
   quorum!: Quorum;
 
-  async addLog(entity: Entity): Promise<KeyHash> {
+  async addLog(entity: Entity): Promise<Base64KeyHash> {
     const hash = await hashKey(entity.publicKey);
     if (this.logs.has(hash)) throw new Error(`Duplicate log key: ${hash}`);
     this.logs.set(hash, entity);
     return hash;
   }
 
-  async addWitness(entity: Entity): Promise<KeyHash> {
+  async addWitness(entity: Entity): Promise<Base64KeyHash> {
     const hash = await hashKey(entity.publicKey);
     if (this.witnesses.has(hash))
       throw new Error(`Duplicate witness key: ${hash}`);

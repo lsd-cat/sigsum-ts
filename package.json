@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "vitest run --coverage",
     "lint": "npx eslint . --fix && npx prettier --write ."
   },
   "keywords": [
@@ -19,9 +19,10 @@
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.3.0",
-    "vitest": "^1.2.0"
+    "vitest": "^3.2.0"
   },
   "dependencies": {
+    "@vitest/coverage-v8": "^3.2.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "typescript-eslint": "^8.32.1"
   }

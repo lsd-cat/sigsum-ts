@@ -149,4 +149,124 @@ describe("Malformed policy cases", () => {
       /Duplicate log key:/,
     );
   });
+
+  it("fails on duplicated witness key", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      witness duplicated ${witnesses.nisse}
+      quorum nisse
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      /Duplicate witness key:/,
+    );
+  });
+
+  it("fails on duplicated witness key", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      witness nisse ${witnesses.rgdd}
+      quorum nisse
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "duplicate name: nisse",
+    );
+  });
+
+  it("fails on too many arguments", async () => {
+    const text = `
+      log ${log1} https://url extra-argument
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      quorum nisse
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "log line must include pubkey and optional URL",
+    );
+  });
+
+  it("fails on group with less than 3 arguments", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      witness rgdd ${witnesses.rgdd}
+      group broken-group 1
+      quorum broken-group
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "group requires name, threshold, and members",
+    );
+  });
+
+  it("fails on duplicate group name", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      witness rgdd ${witnesses.rgdd}
+      group duplicate-group 1 nisse
+      group duplicate-group 1 rgdd
+      quorum broken-group
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "duplicate group name: duplicate-group",
+    );
+  });
+
+  it("fails without a quorum", async () => {
+    const text = `
+      log ${log1}
+      witness nisse ${witnesses.nisse}
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "no quorum defined",
+    );
+  });
+
+  it("fails on duplicate quorum keyword", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      witness rgdd ${witnesses.rgdd}
+      group a-group 1 nisse
+      group b-group 1 rgdd
+      quorum a-group
+      quorum b-group
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "quorum can only be set once",
+    );
+  });
+
+  it("fails on quorum with non-existant group", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      witness rgdd ${witnesses.rgdd}
+      group a-group 1 nisse
+      group b-group 1 rgdd
+      quorum c-group
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "undefined name: c-group",
+    );
+  });
+
+  it("fails on malformed quorum line", async () => {
+    const text = `
+      log ${log1}
+      log ${log2}
+      witness nisse ${witnesses.nisse}
+      quorum nisse 2
+    `;
+    await expect(() => parsePolicyText(text)).rejects.toThrow(
+      "quorum requires a single name",
+    );
+  });
 });
