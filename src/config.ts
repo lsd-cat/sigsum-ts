@@ -1,5 +1,5 @@
 import { hashKey, importKey } from "./crypto";
-import { hexToUint8Array } from "./encoding";
+import { hexToUint8Array, Uint8ArrayToBase64 } from "./encoding";
 import {
   Entity,
   EntityMap,
@@ -23,14 +23,18 @@ class PolicyImpl implements Policy {
   quorum!: Quorum;
 
   async addLog(entity: Entity): Promise<Base64KeyHash> {
-    const hash = await hashKey(entity.publicKey);
+    const hash = Uint8ArrayToBase64(
+      await hashKey(entity.publicKey),
+    ) as Base64KeyHash;
     if (this.logs.has(hash)) throw new Error(`Duplicate log key: ${hash}`);
     this.logs.set(hash, entity);
     return hash;
   }
 
   async addWitness(entity: Entity): Promise<Base64KeyHash> {
-    const hash = await hashKey(entity.publicKey);
+    const hash = Uint8ArrayToBase64(
+      await hashKey(entity.publicKey),
+    ) as Base64KeyHash;
     if (this.witnesses.has(hash))
       throw new Error(`Duplicate witness key: ${hash}`);
     this.witnesses.set(hash, entity);

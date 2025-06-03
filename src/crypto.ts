@@ -1,5 +1,12 @@
-import { Uint8ArrayToBase64 } from "./encoding";
-import { Base64KeyHash, PublicKey, RawPublicKey, Signature } from "./types";
+import { stringToUint8Array } from "./encoding";
+import { formatCheckpoint } from "./format";
+import {
+  KeyHash,
+  PublicKey,
+  RawPublicKey,
+  Signature,
+  SignedTreeHead,
+} from "./types";
 
 export async function importKey(
   rawPublicKey: RawPublicKey,
@@ -33,12 +40,25 @@ export async function verifySignature(
   );
 }
 
-export async function hashKey(publicKey: PublicKey): Promise<Base64KeyHash> {
+export async function hashKey(publicKey: PublicKey): Promise<KeyHash> {
   const rawPublicKey = (await crypto.subtle.exportKey(
     "raw",
     publicKey,
   )) as RawPublicKey;
-  return Uint8ArrayToBase64(
+  return new Uint8Array(
     await crypto.subtle.digest("SHA-256", rawPublicKey),
-  ) as Base64KeyHash;
+  ) as KeyHash;
+}
+
+export async function verifySignedTreeHead(
+  signedTreeHead: SignedTreeHead,
+  publicKey: PublicKey,
+  logKeyHash: KeyHash,
+) {
+  const checkpoint = formatCheckpoint(signedTreeHead, logKeyHash);
+  return await verifySignature(
+    publicKey,
+    signedTreeHead.Signature,
+    stringToUint8Array(checkpoint),
+  );
 }
