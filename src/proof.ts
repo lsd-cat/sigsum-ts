@@ -86,6 +86,9 @@ export function parseInclusionProof(lines: string[]): InclusionProof {
     }
 
     if (key === "leaf_index") {
+      if (leafIndex !== null)
+        throw new Error("duplicate leaf_index line in inclusion proof");
+
       const parsed = parseInt(value, 10);
       if (isNaN(parsed) || parsed < 0) {
         throw new Error("invalid leaf_index value");
@@ -97,8 +100,6 @@ export function parseInclusionProof(lines: string[]): InclusionProof {
         throw new Error("node_hash must be 32 bytes");
       }
       path.push(hash as Hash);
-    } else {
-      throw new Error(`unexpected key in inclusion proof: ${key}`);
     }
   }
 
@@ -159,7 +160,7 @@ export class SigsumProof {
       (leafParts.length !== 2 && version === 2) ||
       (leafParts.length !== 3 && version === 1)
     ) {
-      throw new Error("Invalid leaf line format");
+      throw new Error("invalid leaf line format");
     }
 
     // Version 2 removed a short checksum at the beginning of the proof
@@ -190,7 +191,6 @@ export class SigsumProof {
     const cosignedTreeHead = parseCosignedTreeHead(treeHeadLines);
 
     const leafIndex = lines.findIndex((l) => l.startsWith("leaf_index="));
-    if (leafIndex === -1) throw new Error("missing leaf_index");
     const inclusionLines = lines
       .slice(leafIndex)
       .filter((l) => l.startsWith("leaf_index=") || l.startsWith("node_hash="));
