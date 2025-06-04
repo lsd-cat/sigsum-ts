@@ -13,7 +13,7 @@ export type PublicKey = Branded<CryptoKey, "PublicKey">;
 
 // https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/types/tree_head.go
 export interface Cosignature {
-  Timestamp: Date;
+  Timestamp: number;
   Signature: Signature;
 }
 

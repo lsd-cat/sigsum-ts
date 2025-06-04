@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   hashKey,
   importKey,
+  verifyCosignedTreeHead,
   verifySignature,
   verifySignedTreeHead,
 } from "../crypto";
 import { Uint8ArrayToBase64 } from "../encoding";
 import {
+  Cosignature,
   Hash,
+  KeyHash,
   RawPublicKey,
   Signature,
   SignedTreeHead,
@@ -50,6 +53,28 @@ const TREEHEAD_SIGNATURE = new Uint8Array([
   0xef, 0x78, 0x0a, 0x1b, 0x02, 0x08, 0x50, 0x30, 0xba, 0xb9, 0x3c, 0x84, 0x51,
   0x36, 0xed, 0x1f, 0x9c, 0x78, 0xec, 0x96, 0x13, 0x93, 0xdf, 0xc1, 0x00,
 ]) as Signature;
+
+export const WITNESS_PUBKEY = new Uint8Array([
+  0x1c, 0x25, 0xf8, 0xa4, 0x4c, 0x63, 0x54, 0x57, 0xe2, 0xe3, 0x91, 0xd1, 0xef,
+  0xbc, 0xa7, 0xd4, 0xc2, 0x95, 0x1a, 0x0a, 0xef, 0x06, 0x22, 0x5a, 0x88, 0x1e,
+  0x46, 0xb9, 0x89, 0x62, 0xac, 0x6c,
+]) as RawPublicKey;
+
+export const WITNESS_KEYHASH = new Uint8Array([
+  0x1c, 0x99, 0x72, 0x61, 0xf1, 0x6e, 0x6e, 0x81, 0xd1, 0x3f, 0x42, 0x09, 0x00,
+  0xa2, 0x54, 0x2a, 0x4b, 0x6a, 0x04, 0x9c, 0x2d, 0x99, 0x63, 0x24, 0xee, 0x5d,
+  0x82, 0xa9, 0x0c, 0xa3, 0x36, 0x0c,
+]) as KeyHash;
+
+export const WITNESS_COSIGNATURE = new Uint8Array([
+  0x98, 0x2d, 0xfe, 0x23, 0xaf, 0x26, 0x4d, 0xe2, 0x76, 0xe3, 0x55, 0x67, 0xe1,
+  0x62, 0x13, 0x9a, 0xd2, 0xcd, 0xba, 0xc9, 0x47, 0xb9, 0xff, 0x6d, 0xc7, 0x0a,
+  0xee, 0x02, 0xc3, 0xaa, 0x79, 0x8b, 0x3a, 0x46, 0xdc, 0x7d, 0x28, 0x90, 0x67,
+  0x10, 0x7e, 0x52, 0xd1, 0x0d, 0xa0, 0x57, 0x12, 0x92, 0x38, 0xe0, 0x7a, 0xfc,
+  0x33, 0xa1, 0x61, 0x0a, 0x28, 0x33, 0xf5, 0xfc, 0xc3, 0x33, 0x44, 0x01,
+]) as Signature;
+
+export const WITNESS_TIMESTAMP = 1748943073;
 
 describe("crypto", () => {
   it("imports a valid Ed25519 raw public key", async () => {
@@ -143,6 +168,153 @@ describe("crypto", () => {
       signedTreeHead,
       publicKey,
       logKeyHash,
+    );
+    expect(result).toBe(true);
+  });
+
+  it("fails to verify if root hash is tampered", async () => {
+    const publicKey = await importKey(LOG_PUBKEY);
+    const logKeyHash = await hashKey(publicKey);
+
+    const corruptedRootHash = new Uint8Array(TREEHEAD_ROOT_HASH);
+    corruptedRootHash[corruptedRootHash.length - 1] ^= 0xff;
+
+    const treeHead: TreeHead = {
+      Size: 899,
+      RootHash: corruptedRootHash as Hash,
+    };
+
+    const signedTreeHead: SignedTreeHead = {
+      TreeHead: treeHead,
+      Signature: TREEHEAD_SIGNATURE,
+    };
+
+    const result = await verifySignedTreeHead(
+      signedTreeHead,
+      publicKey,
+      logKeyHash,
+    );
+    expect(result).toBe(false);
+  });
+
+  it("fails to verify if size is tampered", async () => {
+    const publicKey = await importKey(LOG_PUBKEY);
+    const logKeyHash = await hashKey(publicKey);
+
+    const treeHead: TreeHead = {
+      Size: 900,
+      RootHash: TREEHEAD_ROOT_HASH,
+    };
+
+    const signedTreeHead: SignedTreeHead = {
+      TreeHead: treeHead,
+      Signature: TREEHEAD_SIGNATURE,
+    };
+
+    const result = await verifySignedTreeHead(
+      signedTreeHead,
+      publicKey,
+      logKeyHash,
+    );
+    expect(result).toBe(false);
+  });
+
+  it("fails to verify if signature is tampered", async () => {
+    const publicKey = await importKey(LOG_PUBKEY);
+    const logKeyHash = await hashKey(publicKey);
+
+    const corruptedSignature = new Uint8Array(TREEHEAD_SIGNATURE);
+    corruptedSignature[corruptedSignature.length - 1] ^= 0xff;
+
+    const treeHead: TreeHead = {
+      Size: 899,
+      RootHash: TREEHEAD_ROOT_HASH,
+    };
+
+    const signedTreeHead: SignedTreeHead = {
+      TreeHead: treeHead,
+      Signature: corruptedSignature as Signature,
+    };
+
+    const result = await verifySignedTreeHead(
+      signedTreeHead,
+      publicKey,
+      logKeyHash,
+    );
+    expect(result).toBe(false);
+  });
+
+  it("fails to verify if log public key is tampered", async () => {
+    const corruptedPubKey = new Uint8Array(LOG_PUBKEY);
+    corruptedPubKey[corruptedPubKey.length - 1] ^= 0xff;
+
+    const publicKey = await importKey(corruptedPubKey as RawPublicKey);
+    const logKeyHash = await hashKey(publicKey);
+
+    const treeHead: TreeHead = {
+      Size: 899,
+      RootHash: TREEHEAD_ROOT_HASH,
+    };
+
+    const signedTreeHead: SignedTreeHead = {
+      TreeHead: treeHead,
+      Signature: TREEHEAD_SIGNATURE,
+    };
+
+    const result = await verifySignedTreeHead(
+      signedTreeHead,
+      publicKey,
+      logKeyHash,
+    );
+    expect(result).toBe(false);
+  });
+
+  it("fails to verify if log public key does not match key hash", async () => {
+    const corruptedPubKey = new Uint8Array(LOG_PUBKEY);
+    corruptedPubKey[corruptedPubKey.length - 1] ^= 0xff;
+
+    const publicKey = await importKey(LOG_PUBKEY);
+    const publicKeyCorrupted = await importKey(corruptedPubKey as RawPublicKey);
+    const logKeyHash = await hashKey(publicKeyCorrupted);
+
+    const treeHead: TreeHead = {
+      Size: 899,
+      RootHash: TREEHEAD_ROOT_HASH,
+    };
+
+    const signedTreeHead: SignedTreeHead = {
+      TreeHead: treeHead,
+      Signature: TREEHEAD_SIGNATURE,
+    };
+
+    const result = await verifySignedTreeHead(
+      signedTreeHead,
+      publicKey,
+      logKeyHash,
+    );
+    expect(result).toBe(false);
+  });
+
+  it("verifies a valid cosignature", async () => {
+    const witnessPublicKey = await importKey(WITNESS_PUBKEY);
+    const logPublicKey = await importKey(LOG_PUBKEY);
+    const logKeyHash = await hashKey(logPublicKey);
+
+    const treeHead: TreeHead = {
+      Size: 899,
+      RootHash: TREEHEAD_ROOT_HASH,
+    };
+
+    const cosignature: Cosignature = {
+      Signature: WITNESS_COSIGNATURE,
+      Timestamp: WITNESS_TIMESTAMP,
+    };
+
+    const result = await verifyCosignedTreeHead(
+      treeHead,
+      witnessPublicKey,
+      logKeyHash,
+      cosignature,
     );
     expect(result).toBe(true);
   });

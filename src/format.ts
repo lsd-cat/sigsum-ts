@@ -1,23 +1,34 @@
 import { CheckpointNamePrefix, CosignatureNamespace } from "./constants";
 import { Uint8ArrayToBase64, Uint8ArrayToHex } from "./encoding";
-import { KeyHash, SignedTreeHead } from "./types";
+import { KeyHash, TreeHead } from "./types";
 
 export function formatCheckpoint(
-  signedTreeHead: SignedTreeHead,
+  treeHead: TreeHead,
   logKeyHash: KeyHash,
 ): string {
   const origin = CheckpointNamePrefix + Uint8ArrayToHex(logKeyHash);
-  const rootHash = Uint8ArrayToBase64(signedTreeHead.TreeHead.RootHash);
-  const checkpointStr = `${origin}\n${signedTreeHead.TreeHead.Size}\n${rootHash}\n`;
+  const rootHash = Uint8ArrayToBase64(treeHead.RootHash);
+  const checkpointStr = `${origin}\n${treeHead.Size}\n${rootHash}\n`;
   return checkpointStr;
 }
 
 export function formatCosignedData(
-  signedTreeHead: SignedTreeHead,
+  treeHead: TreeHead,
   logKeyHash: KeyHash,
-  timestamp: Date,
+  timestamp: number,
 ): string {
-  const checkpointStr = formatCheckpoint(signedTreeHead, logKeyHash);
+  const checkpointStr = formatCheckpoint(treeHead, logKeyHash);
   const cosignedStr = `${CosignatureNamespace}\ntime ${timestamp}\n${checkpointStr}`;
   return cosignedStr;
+}
+
+export function attachNamespace(
+  namespace: Uint8Array,
+  hash: Uint8Array,
+): Uint8Array {
+  const result = new Uint8Array(namespace.length + 1 + hash.length);
+  result.set(namespace, 0);
+  result[namespace.length] = 0;
+  result.set(hash, namespace.length + 1);
+  return result;
 }

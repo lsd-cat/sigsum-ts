@@ -1,11 +1,13 @@
 import { stringToUint8Array } from "./encoding";
-import { formatCheckpoint } from "./format";
+import { formatCheckpoint, formatCosignedData } from "./format";
 import {
+  Cosignature,
   KeyHash,
   PublicKey,
   RawPublicKey,
   Signature,
   SignedTreeHead,
+  TreeHead,
 } from "./types";
 
 export async function importKey(
@@ -55,10 +57,30 @@ export async function verifySignedTreeHead(
   publicKey: PublicKey,
   logKeyHash: KeyHash,
 ) {
-  const checkpoint = formatCheckpoint(signedTreeHead, logKeyHash);
+  const checkpoint = formatCheckpoint(signedTreeHead.TreeHead, logKeyHash);
   return await verifySignature(
     publicKey,
     signedTreeHead.Signature,
     stringToUint8Array(checkpoint),
+  );
+}
+
+export async function verifyCosignedTreeHead(
+  treeHead: TreeHead,
+  witnessPublicKey: PublicKey,
+  logKeyHash: KeyHash,
+  cosignature: Cosignature,
+) {
+  const cosignedCheckpoint = formatCosignedData(
+    treeHead,
+    logKeyHash,
+    cosignature.Timestamp,
+  );
+
+  console.log(cosignedCheckpoint);
+  return await verifySignature(
+    witnessPublicKey,
+    cosignature.Signature,
+    stringToUint8Array(cosignedCheckpoint),
   );
 }

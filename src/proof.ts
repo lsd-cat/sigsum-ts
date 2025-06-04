@@ -28,11 +28,10 @@ function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
       const [keyHashHex, timeStr, sigHex] = parts;
 
       const keyHash = hexToBase64(keyHashHex) as Base64KeyHash;
-      const seconds = parseInt(timeStr, 10);
-      const timestamp = new Date(seconds * 1000);
+      const timestamp = parseInt(timeStr, 10);
       const signature = hexToUint8Array(sigHex) as Signature;
 
-      if (isNaN(timestamp.getTime())) {
+      if (isNaN(timestamp) || timestamp <= 0) {
         throw new Error("invalid cosignature timestamp");
       }
 
