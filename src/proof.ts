@@ -5,6 +5,7 @@ import {
   CosignedTreeHead,
   Hash,
   InclusionProof,
+  KeyHash,
   ShortLeaf,
   Signature,
   SignedTreeHead,
@@ -114,14 +115,14 @@ export function parseInclusionProof(lines: string[]): InclusionProof {
 
 export class SigsumProof {
   version: number;
-  logKeyHash: Base64KeyHash;
+  logKeyHash: KeyHash;
   leaf: ShortLeaf;
   treeHead: CosignedTreeHead;
   inclusion: InclusionProof;
 
   constructor(
     version: number,
-    logKeyHash: Base64KeyHash,
+    logKeyHash: KeyHash,
     leaf: ShortLeaf,
     treeHead: CosignedTreeHead,
     inclusion: InclusionProof,
@@ -145,9 +146,7 @@ export class SigsumProof {
 
     const logLine = lines.find((l) => l.startsWith("log="));
     if (!logLine) throw new Error("missing log line");
-    const logKeyHash = hexToBase64(
-      logLine.split("=")[1].trim(),
-    ) as Base64KeyHash;
+    const logKeyHash = hexToUint8Array(logLine.split("=")[1].trim()) as KeyHash;
 
     const leafLineIndex = lines.findIndex((l) => l.startsWith("leaf="));
     if (leafLineIndex === -1) throw new Error("missing leaf line");
@@ -169,9 +168,9 @@ export class SigsumProof {
       keyHashIndex++;
       signatureIndex++;
     }
-    const base64KeyHash = hexToBase64(leafParts[keyHashIndex]) as Base64KeyHash;
+    const keyHash = hexToUint8Array(leafParts[keyHashIndex]) as KeyHash;
     const signature = hexToUint8Array(leafParts[signatureIndex]) as Signature;
-    const leaf = new ShortLeaf(base64KeyHash, signature);
+    const leaf = new ShortLeaf(keyHash, signature);
 
     const treeHeadStart = lines.findIndex(
       (l) =>

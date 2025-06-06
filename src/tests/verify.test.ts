@@ -1,0 +1,52 @@
+import { describe, it } from "vitest";
+
+import { hexToUint8Array } from "../encoding";
+import { RawPublicKey } from "../types";
+import { verify } from "./../verify";
+
+const POLICY = `
+log 4644af2abd40f4895a003bca350f9d5912ab301a49c77f13e5b6d905c20a5fe6 https://test.sigsum.org/barreleye
+
+witness test1 1c25f8a44c635457e2e391d1efbca7d4c2951a0aef06225a881e46b98962ac6c
+witness test2 28c92a5a3a054d317c86fc2eeb6a7ab2054d6217100d0be67ded5b74323c5806
+witness test3 f4855a0f46e8a3e23bb40faf260ee57ab8a18249fa402f2ca2d28a60e1a3130e
+
+group 2of3 2 test1 test2 test3
+
+quorum 2of3`;
+
+const PROOF = `
+version=1
+log=4e89cc51651f0d95f3c6127c15e1a42e3ddf7046c5b17b752689c402e773bb4d
+leaf=f62f 00004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d 7fdadea21d3268bceb9c4959f25ed8d7a0be2e23637bbcf795b861498626928bcde9180591c5d3c1d6b15b0b6a36df329226d312cde0bb36331888194df1680a
+
+size=930
+root_hash=f24ca2b7b234c380438fbeb7e6a3e7481705adf22b8ecab47ca049b31b642bd8
+signature=a3e28bf1b8e97664ba2505ed1f02373af70ad86f5a794b8ddf77c9dfc2cda3766479cc53906312dc705f5892472eb1b1a60843f1fd0e0ea3442b6df6a7f11805
+cosignature=e923764535cac36836d1af682a2a3e5352e2636ec29c1d34c00160e1f4946d31 1749045854 eb9670fc459a8a3ca226cda1cdc37079018e7e2ae94db426da8e25e181ca29fd651e5ab6e12b3b080fd93cf41304d78669da499744f2c8db8adf25d9fa1ecb0e
+cosignature=70b861a010f25030de6ff6a5267e0b951e70c04b20ba4a3ce41e7fba7b9b7dfc 1749045854 62b2733f600df0cf2b2fe6e3e2b5e525048280872b68df3fc4b08409e325c857b5aa4b96806ced5fcb8edf4eb138e13772f48d55cc0de821bb8e6866443e7602
+cosignature=49c4cd6124b7c572f3354d854d50b2a4b057a750f786cf03103c09de339c4ea3 1749045854 dbf5eb3cb2f7f0bb4f81d748becb2e9ab0454e7fe674722d53963044b53a7105ec6b0dc83fd942f68d6bc5eca37540c837fcef3b657cf920a98e61adcdfc3d08
+cosignature=1c997261f16e6e81d13f420900a2542a4b6a049c2d996324ee5d82a90ca3360c 1749045854 5c5fa4d25f7734caf519c41b25e40220d54a7b1637cb608a034d7ee7878501313b36c8b8c0e4b61c7bb7d1f123aa856ffdb80e035650eac4b59be0f877d68e00
+cosignature=42351ad474b29c04187fd0c8c7670656386f323f02e9a4ef0a0055ec061ecac8 1749045854 87c38ca5122a164450c93656a10b36deade0d031501d63ea9377d24608ad0d45949d938129c7e780495332aa09c44f8bf00a08ffe689a470504c25beb8bdfc07
+
+leaf_index=929
+node_hash=77c4b148100a011c490dd23bead8e08f9bdafe27675082f6ec00b0725b8ef8fd
+node_hash=0736f9e2aad3b8c89c4dbb01f71d3c38d0ace393079dcaf8edd9b61ab9adca84
+node_hash=abc5352f9af6df2f2c0a06381043393af36555170c01b3004507af7d36fd22a4
+node_hash=4e301e7ae4f9abb0c710cae380daa991b95528b0d631ce04a001c28236e4f938
+node_hash=b6be547daa4f6b3d42628bb14020e9b2d73a4ee8cf3c4e0a3b88793916926f27
+`;
+
+const PUBKEY = hexToUint8Array(
+  `236bb3cff541f16b1c357624d20f258cc48b7c57080ff7de60c971df70c04ad8`,
+) as RawPublicKey;
+
+// test\n
+const MESSAGE = new Uint8Array([0x74, 0x65, 0x73, 0x74, 0x0a]);
+
+describe("verify", () => {
+  it("prints the result of a demo verification run", async () => {
+    const result = await verify(MESSAGE, PUBKEY, POLICY, PROOF);
+    console.log("✅ Verification result:", result);
+  });
+});

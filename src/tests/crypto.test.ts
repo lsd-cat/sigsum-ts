@@ -318,4 +318,28 @@ describe("crypto", () => {
     );
     expect(result).toBe(true);
   });
+
+  it("fails to verify a cosignature with tampered timestanp", async () => {
+    const witnessPublicKey = await importKey(WITNESS_PUBKEY);
+    const logPublicKey = await importKey(LOG_PUBKEY);
+    const logKeyHash = await hashKey(logPublicKey);
+
+    const treeHead: TreeHead = {
+      Size: 899,
+      RootHash: TREEHEAD_ROOT_HASH,
+    };
+
+    const cosignature: Cosignature = {
+      Signature: WITNESS_COSIGNATURE,
+      Timestamp: WITNESS_TIMESTAMP + 1,
+    };
+
+    const result = await verifyCosignedTreeHead(
+      treeHead,
+      witnessPublicKey,
+      logKeyHash,
+      cosignature,
+    );
+    expect(result).toBe(false);
+  });
 });

@@ -1,3 +1,5 @@
+import { Uint8ArrayToHex } from "./encoding";
+
 // https://egghead.io/blog/using-branded-types-in-typescript
 declare const __brand: unique symbol;
 type Brand<B> = { [__brand]: B };
@@ -33,10 +35,31 @@ export interface CosignedTreeHead {
 }
 
 // https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/types/leaf.go
-export interface Leaf {
+export class Leaf {
   Checksum: Hash;
   Signature: Signature;
-  Base64KeyHash: Base64KeyHash;
+  KeyHash: KeyHash;
+
+  constructor(checksum: Hash, signature: Signature, keyHash: KeyHash) {
+    this.Checksum = checksum;
+    this.Signature = signature;
+    this.KeyHash = keyHash;
+  }
+
+  public async hashLeaf(): Promise<Hash> {
+    console.log(Uint8ArrayToHex(this.Checksum));
+    console.log(Uint8ArrayToHex(this.Signature));
+    console.log(Uint8ArrayToHex(this.KeyHash));
+    const leafBinary = new Uint8Array(129);
+    leafBinary[0] = 0x0; // PrefixLeafNode
+    leafBinary.set(this.Checksum, 1);
+    leafBinary.set(this.Signature, 33);
+    leafBinary.set(this.KeyHash, 97);
+
+    return new Uint8Array(
+      await crypto.subtle.digest("SHA-256", leafBinary),
+    ) as Hash;
+  }
 }
 
 // https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/types/proof.go
@@ -47,23 +70,19 @@ export interface InclusionProof {
 
 // See https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/proof/proof.go
 export class ShortLeaf {
-  Base64KeyHash: Base64KeyHash;
+  KeyHash: KeyHash;
   Signature: Signature;
 
-  constructor(Base64KeyHash: Base64KeyHash, signature: Signature) {
-    this.Base64KeyHash = Base64KeyHash;
+  constructor(keyHash: KeyHash, signature: Signature) {
+    this.KeyHash = keyHash;
     this.Signature = signature;
   }
 
   static fromLeaf(leaf: Leaf): ShortLeaf {
-    return new ShortLeaf(leaf.Base64KeyHash, leaf.Signature);
+    return new ShortLeaf(leaf.KeyHash, leaf.Signature);
   }
 
   toLeaf(checksum: Hash): Leaf {
-    return {
-      Checksum: checksum,
-      Base64KeyHash: this.Base64KeyHash,
-      Signature: this.Signature,
-    };
+    return new Leaf(checksum, this.Signature, this.KeyHash);
   }
 }
