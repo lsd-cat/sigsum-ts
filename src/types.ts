@@ -73,9 +73,9 @@ export class ShortLeaf {
     this.Signature = signature;
   }
 
-  static fromLeaf(leaf: Leaf): ShortLeaf {
-    return new ShortLeaf(leaf.KeyHash, leaf.Signature);
-  }
+  //static fromLeaf(leaf: Leaf): ShortLeaf {
+  //  return new ShortLeaf(leaf.KeyHash, leaf.Signature);
+  //}
 
   toLeaf(checksum: Hash): Leaf {
     return new Leaf(checksum, this.Signature, this.KeyHash);

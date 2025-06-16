@@ -100,16 +100,10 @@ export async function verify(
   }
 
   // Step 6 - verify the actual inclusion proof
-  if (
-    !(await verifyInclusionProof(
-      await proof.leaf.toLeaf(checksum).hashLeaf(),
-      proof.inclusion.LeafIndex,
-      proof.treeHead.SignedTreeHead.TreeHead,
-      proof.inclusion.Path,
-    ))
-  ) {
-    throw new Error("failed to verify inclusion proof");
-  }
-
-  return true;
+  return await verifyInclusionProof(
+    await proof.leaf.toLeaf(checksum).hashLeaf(),
+    proof.inclusion.LeafIndex,
+    proof.treeHead.SignedTreeHead.TreeHead,
+    proof.inclusion.Path,
+  );
 }

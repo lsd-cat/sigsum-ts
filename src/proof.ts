@@ -19,7 +19,6 @@ function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed === "") continue;
 
     if (trimmed.startsWith("cosignature=")) {
       const [_, rest] = trimmed.split("=", 2);
@@ -78,7 +77,6 @@ export function parseInclusionProof(lines: string[]): InclusionProof {
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
 
     const [key, value] = trimmed.split("=");
     if (!key || !value) {
