@@ -1,5 +1,3 @@
-import { Uint8ArrayToHex } from "./encoding";
-
 // https://egghead.io/blog/using-branded-types-in-typescript
 declare const __brand: unique symbol;
 type Brand<B> = { [__brand]: B };
@@ -47,9 +45,6 @@ export class Leaf {
   }
 
   public async hashLeaf(): Promise<Hash> {
-    console.log(Uint8ArrayToHex(this.Checksum));
-    console.log(Uint8ArrayToHex(this.Signature));
-    console.log(Uint8ArrayToHex(this.KeyHash));
     const leafBinary = new Uint8Array(129);
     leafBinary[0] = 0x0; // PrefixLeafNode
     leafBinary.set(this.Checksum, 1);

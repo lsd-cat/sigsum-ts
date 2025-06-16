@@ -10,7 +10,7 @@ import {
   verifySignature,
   verifySignedTreeHead,
 } from "./crypto";
-import { Uint8ArrayToBase64, Uint8ArrayToHex } from "./encoding";
+import { Uint8ArrayToBase64 } from "./encoding";
 import { attachNamespace } from "./format";
 import { Policy } from "./policy";
 import { SigsumProof } from "./proof";
@@ -100,7 +100,6 @@ export async function verify(
   }
 
   // Step 6 - verify the actual inclusion proof
-  console.log(Uint8ArrayToHex(await proof.leaf.toLeaf(checksum).hashLeaf()));
   if (
     !(await verifyInclusionProof(
       await proof.leaf.toLeaf(checksum).hashLeaf(),
@@ -112,5 +111,5 @@ export async function verify(
     throw new Error("failed to verify inclusion proof");
   }
 
-  return false;
+  return true;
 }

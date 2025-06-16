@@ -1,4 +1,4 @@
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { hexToUint8Array } from "../encoding";
 import { RawPublicKey } from "../types";
@@ -47,6 +47,6 @@ const MESSAGE = new Uint8Array([0x74, 0x65, 0x73, 0x74, 0x0a]);
 describe("verify", () => {
   it("prints the result of a demo verification run", async () => {
     const result = await verify(MESSAGE, PUBKEY, POLICY, PROOF);
-    console.log("✅ Verification result:", result);
+    expect(result).toBe(true);
   });
 });

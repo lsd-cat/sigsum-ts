@@ -96,17 +96,18 @@ export async function verifyCosignedTreeHead(
 }
 
 export async function hashInteriorNode(left: Hash, right: Hash): Promise<Hash> {
+  const prefix = prefixInteriorNode;
   const combined = new Uint8Array(1 + left.length + right.length);
-  combined.set(prefixInteriorNode, 0);
+  combined.set(prefix, 0);
   combined.set(left, 1);
   combined.set(right, 1 + left.length);
 
-  return new Uint8Array(
-    await crypto.subtle.digest("SHA-256", combined),
-  ) as Hash;
+  const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
+  const hash = new Uint8Array(hashBuffer) as Hash;
+
+  return hash;
 }
 
-// https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/merkle/verify.go
 export async function verifyInclusionProof(
   leafHash: Hash,
   leafIndex: number,
@@ -117,7 +118,6 @@ export async function verifyInclusionProof(
     throw new Error("proof input is malformed: index out of range");
   }
 
-  // If the path is empty, tree size must be 1
   if (path.length === 0) {
     if (!constantTimeBufferEqual(leafHash, treeHead.RootHash)) {
       throw new Error("tree size is 1 but leaf does not match the root");
@@ -134,12 +134,14 @@ export async function verifyInclusionProof(
 
     if (currentIndex & 1) {
       currentHash = await hashInteriorNode(siblingHash, currentHash);
+      pathIndex++;
     } else if (currentIndex < lastNodeIndex) {
       currentHash = await hashInteriorNode(currentHash, siblingHash);
+      pathIndex++;
     }
-    pathIndex++;
-    currentIndex = currentIndex >> 1;
-    lastNodeIndex = lastNodeIndex >> 1;
+
+    currentIndex >>= 1;
+    lastNodeIndex >>= 1;
   }
 
   if (pathIndex !== path.length) {
@@ -151,6 +153,4 @@ export async function verifyInclusionProof(
   }
 
   return true;
-
-  return false;
 }
