@@ -1,4 +1,4 @@
-name: Test and Coverage
+name: Lint, Test and Coverage
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,23 +22,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests with coverage
-        run: npm run test
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Vitest with coverage
+        run: npm run coverage
 
       - name: Enforce 100% coverage
         run: |
           node <<'EOF'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync('coverage/coverage-final.json'));
-          const totals = { lines: 0, coveredLines: 0, functions: 0, coveredFunctions: 0, statements: 0, coveredStatements: 0, branches: 0, coveredBranches: 0 };
+
+          const totals = {
+            lines: 0, coveredLines: 0,
+            functions: 0, coveredFunctions: 0,
+            statements: 0, coveredStatements: 0,
+            branches: 0, coveredBranches: 0
+          };
 
           for (const file of Object.values(data)) {
+            if (!file.lines || !file.functions || !file.statements || !file.branches) continue;
+
             totals.lines += file.lines.total;
             totals.coveredLines += file.lines.covered;
+
             totals.functions += file.functions.total;
             totals.coveredFunctions += file.functions.covered;
+
             totals.statements += file.statements.total;
             totals.coveredStatements += file.statements.covered;
+
             totals.branches += file.branches.total;
             totals.coveredBranches += file.branches.covered;
           }
