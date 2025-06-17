@@ -1,0 +1,67 @@
+name: Test and Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test
+
+      - name: Enforce 100% coverage
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('coverage/coverage-final.json'));
+          const totals = { lines: 0, coveredLines: 0, functions: 0, coveredFunctions: 0, statements: 0, coveredStatements: 0, branches: 0, coveredBranches: 0 };
+
+          for (const file of Object.values(data)) {
+            totals.lines += file.lines.total;
+            totals.coveredLines += file.lines.covered;
+            totals.functions += file.functions.total;
+            totals.coveredFunctions += file.functions.covered;
+            totals.statements += file.statements.total;
+            totals.coveredStatements += file.statements.covered;
+            totals.branches += file.branches.total;
+            totals.coveredBranches += file.branches.covered;
+          }
+
+          function pct(c, t) { return t === 0 ? 100 : (c / t) * 100; }
+
+          const checks = {
+            'Lines': pct(totals.coveredLines, totals.lines),
+            'Functions': pct(totals.coveredFunctions, totals.functions),
+            'Statements': pct(totals.coveredStatements, totals.statements),
+            'Branches': pct(totals.coveredBranches, totals.branches),
+          };
+
+          let failed = false;
+          for (const [label, value] of Object.entries(checks)) {
+            if (value < 100) {
+              console.error(`❌ ${label} coverage below 100%: ${value.toFixed(2)}%`);
+              failed = true;
+            } else {
+              console.log(`✅ ${label} coverage is 100%`);
+            }
+          }
+
+          if (failed) process.exit(1);
+          EOF
+
