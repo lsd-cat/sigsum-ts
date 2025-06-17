@@ -32,31 +32,34 @@ jobs:
           ncu -u
           npm install
 
-      - name: Commit bumped deps
+      - name: Run npm audit fix
+        run: npm audit fix || true
+
+      - name: Commit changes (bump + audit fix)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json
-          git commit -m "chore: bump dependencies"
-        continue-on-error: true  # If no changes, this step is skipped
+          git diff --cached --quiet || git commit -m "chore: bump dependencies and apply audit fix"
+        continue-on-error: true  # Skip if no changes
 
-      - name: Run tests on bumped deps
+      - name: Run tests on updated deps
         id: test
         run: npm run test
         continue-on-error: true
 
       - name: If tests pass, push to main
         if: steps.test.outcome == 'success'
-        run: |
-          git push origin HEAD:main
+        run: git push origin HEAD:main
 
       - name: If tests fail, create PR
         if: steps.test.outcome == 'failure'
         uses: peter-evans/create-pull-request@v5
         with:
           branch: bump-deps-failed
-          title: "chore: bump dependencies (tests failed)"
+          title: "chore: bump dependencies and audit fix (tests failed)"
           body: |
-            Dependencies were updated but tests failed. Please investigate.
-          commit-message: "chore: bump dependencies (tests failed)"
+            Dependencies were updated and `npm audit fix` was run, but tests failed.
+            Please investigate and merge manually.
+          commit-message: "chore: bump dependencies and audit fix (tests failed)"
 
