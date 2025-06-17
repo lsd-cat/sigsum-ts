@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  constantTimeBufferEqual,
   hashKey,
+  hashMessage,
   importKey,
   verifyCosignedTreeHead,
+  verifyInclusionProof,
   verifySignature,
   verifySignedTreeHead,
 } from "../crypto";
 import { Uint8ArrayToBase64 } from "../encoding";
+import { SigsumProof } from "../proof";
 import {
   Cosignature,
   Hash,
@@ -17,6 +21,19 @@ import {
   SignedTreeHead,
   TreeHead,
 } from "../types";
+
+const PROOF = `
+version=1
+log=4e89cc51651f0d95f3c6127c15e1a42e3ddf7046c5b17b752689c402e773bb4d
+leaf=f62f 00004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d 7fdadea21d3268bceb9c4959f25ed8d7a0be2e23637bbcf795b861498626928bcde9180591c5d3c1d6b15b0b6a36df329226d312cde0bb36331888194df1680a
+
+size=1
+root_hash=f24ca2b7b234c380438fbeb7e6a3e7481705adf22b8ecab47ca049b31b642bd8
+signature=a3e28bf1b8e97664ba2505ed1f02373af70ad86f5a794b8ddf77c9dfc2cda3766479cc53906312dc705f5892472eb1b1a60843f1fd0e0ea3442b6df6a7f11805
+cosignature=e923764535cac36836d1af682a2a3e5352e2636ec29c1d34c00160e1f4946d31 1749045854 eb9670fc459a8a3ca226cda1cdc37079018e7e2ae94db426da8e25e181ca29fd651e5ab6e12b3b080fd93cf41304d78669da499744f2c8db8adf25d9fa1ecb0e
+
+leaf_index=1
+`;
 
 const VALID_PUBLIC_KEY = new Uint8Array([
   235, 19, 108, 27, 6, 73, 64, 86, 192, 69, 29, 238, 123, 65, 67, 224, 101, 29,
@@ -341,5 +358,41 @@ describe("crypto", () => {
       cosignature,
     );
     expect(result).toBe(false);
+  });
+
+  it("fails when tree size is one and the leaf does not match the root", async () => {
+    const proof = await SigsumProof.fromAscii(PROOF);
+    const checksum: Hash = await hashMessage(
+      await hashMessage(new Uint8Array([0x1, 0x2])),
+    );
+    const leafHash = await proof.leaf.toLeaf(checksum).hashLeaf();
+    await expect(() =>
+      verifyInclusionProof(
+        leafHash,
+        proof.inclusion.LeafIndex,
+        proof.treeHead.SignedTreeHead.TreeHead,
+        proof.inclusion.Path,
+      ),
+    ).rejects.toThrow(/tree size is 1 but leaf does not match/);
+  });
+});
+
+describe("constantTimeBufferEqual", () => {
+  it("returns false for different lengths", () => {
+    const a = new Uint8Array([1, 2, 3]);
+    const b = new Uint8Array([1, 2, 3, 4]);
+    expect(constantTimeBufferEqual(a, b)).toBe(false);
+  });
+
+  it("returns true for same content", () => {
+    const a = new Uint8Array([5, 6, 7]);
+    const b = new Uint8Array([5, 6, 7]);
+    expect(constantTimeBufferEqual(a, b)).toBe(true);
+  });
+
+  it("returns false for same length but different content", () => {
+    const a = new Uint8Array([5, 6, 7]);
+    const b = new Uint8Array([5, 9, 7]); // difference at index 1
+    expect(constantTimeBufferEqual(a, b)).toBe(false);
   });
 });
