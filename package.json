@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --coverage",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "lint": "npx eslint . --fix && npx prettier --write ."
   },
   "keywords": [
