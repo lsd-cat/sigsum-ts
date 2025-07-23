@@ -1,6 +1,6 @@
 {
   "name": "sigsum",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A Sigsum proof verifier for the browser.",
   "main": "dist/verify.js",
   "types": "dist/verify.d.ts",
