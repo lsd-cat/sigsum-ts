@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { hexToUint8Array } from "../encoding";
 import { RawPublicKey } from "../types";
-import { verify } from "./../verify";
+import { verifyMessage } from "./../verify";
 
 const POLICY = `
 log 4644af2abd40f4895a003bca350f9d5912ab301a49c77f13e5b6d905c20a5fe6 https://test.sigsum.org/barreleye
@@ -73,19 +73,19 @@ const MESSAGE2 = new Uint8Array([0x74, 0x65, 0x73, 0x74, 0x32, 0x0a]);
 
 describe("verify", () => {
   it("runs a successful verification (odd leaf, last included)", async () => {
-    const result = await verify(MESSAGE, PUBKEY, POLICY, PROOF);
+    const result = await verifyMessage(MESSAGE, PUBKEY, POLICY, PROOF);
     expect(result).toBe(true);
   });
 
   it("runs a successful verification (even leaf, middle position)", async () => {
-    const result = await verify(MESSAGE2, PUBKEY, POLICY, EVEN_PROOF);
+    const result = await verifyMessage(MESSAGE2, PUBKEY, POLICY, EVEN_PROOF);
     expect(result).toBe(true);
   });
 
   it("fails for a tampered message", async () => {
     const fake_message = new Uint8Array([0x75, 0x65, 0x73, 0x74, 0x0a]);
     await expect(() =>
-      verify(fake_message, PUBKEY, POLICY, PROOF),
+      verifyMessage(fake_message, PUBKEY, POLICY, PROOF),
     ).rejects.toThrow(/invalid message signature/);
   });
 
@@ -95,7 +95,7 @@ describe("verify", () => {
       "leaf_index=931",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, too_high_leaf_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, too_high_leaf_proof),
     ).rejects.toThrow(/out of range/);
   });
 
@@ -105,7 +105,7 @@ describe("verify", () => {
       "node_hash=aa301e7ae4f9abb0c710cae380daa991b95528b0d631ce04a001c28236e4f938",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, tampared_path_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, tampared_path_proof),
     ).rejects.toThrow(/invalid proof/);
   });
 
@@ -114,7 +114,7 @@ describe("verify", () => {
       "node_hash=236bb3cff541f16b1c357624d20f258cc48b7c57080ff7de60c971df70c04ad8\n",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, overlong_path_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, overlong_path_proof),
     ).rejects.toThrow(/internal error: unused path elements/);
   });
 
@@ -124,7 +124,7 @@ describe("verify", () => {
       "log=aa89cc51651f0d95f3c6127c15e1a42e3ddf7046c5b17b752689c402e773bb4d",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, wrong_log_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, wrong_log_proof),
     ).rejects.toThrow(/log key not found in policy/);
   });
 
@@ -134,14 +134,14 @@ describe("verify", () => {
       "aa004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, wrong_key_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, wrong_key_proof),
     ).rejects.toThrow(/proof key does not match the provided/);
   });
 
   it("fails for tampered tree size", async () => {
     const tampered_treehead_proof = PROOF.replace("size=930", "size=931");
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
     ).rejects.toThrow(/failed to verify tree head signature/);
   });
 
@@ -151,7 +151,7 @@ describe("verify", () => {
       "root_hash=aa4ca2b7b234c380438fbeb7e6a3e7481705adf22b8ecab47ca049b31b642bd8",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
     ).rejects.toThrow(/failed to verify tree head signature/);
   });
 
@@ -161,7 +161,7 @@ describe("verify", () => {
       "signature=bbe28bf1b8e97664ba2505ed1f02373af70ad86f5a794b8ddf77c9dfc2cda3766479cc53906312dc705f5892472eb1b1a60843f1fd0e0ea3442b6df6a7f11805",
     );
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
     ).rejects.toThrow(/failed to verify tree head signature/);
   });
 
@@ -185,7 +185,7 @@ node_hash=4e301e7ae4f9abb0c710cae380daa991b95528b0d631ce04a001c28236e4f938
 node_hash=b6be547daa4f6b3d42628bb14020e9b2d73a4ee8cf3c4e0a3b88793916926f27
 `;
     await expect(() =>
-      verify(MESSAGE, PUBKEY, POLICY, fail_quorum_proof),
+      verifyMessage(MESSAGE, PUBKEY, POLICY, fail_quorum_proof),
     ).rejects.toThrow(/cosignature quorum not satisfied/);
   });
 });

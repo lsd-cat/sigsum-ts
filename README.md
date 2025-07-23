@@ -27,13 +27,26 @@ As a result, explicit casts or carefully constructed wrappers are required to us
 
 ## Usage
 
-To verify a Sigsum proof, call the verify() function with the message, the raw submitter public key, a Sigsum policy, and the proof text.
+To verify a Sigsum proof, call the verifyMessage() function with the message, the raw submitter public key, a Sigsum policy, and the proof text.
 
 ```ts
-import { verify } from "sigsum-ts";
+import { verifyMessage } from "sigsum-ts";
 
 const isValid = await verify(
   messageBytes, // Uint8Array
+  submitterRawPublicKey, // Uint8Array as RawPublicKey (32 bytes, Ed25519)
+  policyText, // string (Sigsum policy format)
+  proofText, // string (Sigsum proof format)
+);
+```
+
+Sometimes, especially when fetching updates remotely, it could be useful to verify a proof for a hash of a file that has not been obtained yet. `verifyHash` takes the same arguments of `verifyMessage`, except that the first one is expected to be already an hash.
+
+```ts
+import { verifyMessage } from "sigsum-ts";
+
+const isValid = await verifyMessage(
+  messageHash, // Uint8Array
   submitterRawPublicKey, // Uint8Array as RawPublicKey (32 bytes, Ed25519)
   policyText, // string (Sigsum policy format)
   proofText, // string (Sigsum proof format)

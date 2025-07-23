@@ -16,8 +16,18 @@ import { Policy } from "./policy";
 import { SigsumProof } from "./proof";
 import { Base64KeyHash, Hash, KeyHash, PublicKey, RawPublicKey } from "./types";
 
-export async function verify(
+export async function verifyMessage(
   message: Uint8Array,
+  submitterRawPublicKey: RawPublicKey,
+  policyText: string,
+  proofText: string,
+): Promise<boolean> {
+  const message_hash = await hashMessage(message);
+  return verifyHash(message_hash, submitterRawPublicKey, policyText, proofText);
+}
+
+export async function verifyHash(
+  message_hash: Uint8Array,
   submitterRawPublicKey: RawPublicKey,
   policyText: string,
   proofText: string,
@@ -29,7 +39,7 @@ export async function verify(
 
   // From https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/sigsum-proof.md
   // Step 1 - remember the double hashig (the first hash is the leaf data, and the second the leaf checksum)
-  const checksum: Hash = await hashMessage(await hashMessage(message));
+  const checksum: Hash = await hashMessage(message_hash);
 
   // Step 2
   if (!constantTimeBufferEqual(proof.leaf.KeyHash, submitterKeyHash)) {

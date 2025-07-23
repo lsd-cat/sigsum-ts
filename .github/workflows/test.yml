@@ -78,4 +78,3 @@ jobs:
 
           if (failed) process.exit(1);
           EOF
-
