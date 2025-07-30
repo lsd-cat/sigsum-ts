@@ -19,6 +19,9 @@
   ],
   "author": "Giulio B",
   "license": "MIT",
+  "homepage": "https://github.com/freedomofpress/sigsum-ts#readme",
+  "repository": "github:freedomofpress/sigsum-ts",
+  "bugs": "https://github.com/freedomofpress/sigsum-ts/issues",
   "devDependencies": {
     "typescript": "^5.8.3",
     "vitest": "^3.2.4",
