@@ -1,6 +1,6 @@
 # sigsum-ts
 
-_Note: this library has not been audited, thus its security has not been indipendently verified._
+_Note: this library has not been audited, thus its security has not been independently verified._
 
 `sigsum-ts` is a small, (runtime) dependency-free TypeScript library for verifying Sigsum proofs in the browser. It is designed to work with the Sigsum policy format and verify inclusion proofs, Signed Tree Heads, and cosignatures according to quorum rules. The implementation is strictly for verification purposes, and any cryptographic or format error will throw an exception, ensuring that failures are always explicit and must be caught by the caller. It uses only the [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API). The library mirrors the logic of the original Go implementation from the Sigsum repository, and aims to be as close in behavior and structure as possible.
 
