@@ -24,8 +24,8 @@
   "bugs": "https://github.com/freedomofpress/sigsum-ts/issues",
   "devDependencies": {
     "typescript": "^5.9.3",
-    "vitest": "^4.0.1",
-    "@vitest/coverage-v8": "^4.0.1",
+    "vitest": "^4.0.2",
+    "@vitest/coverage-v8": "^4.0.2",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "typescript-eslint": "^8.46.2"
   }
