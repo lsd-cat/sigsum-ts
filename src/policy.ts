@@ -25,6 +25,10 @@ export class QuorumSingle implements Quorum {
   isQuorum(present: Set<Base64KeyHash>): boolean {
     return present.has(this.w);
   }
+
+  get witness(): Base64KeyHash {
+    return this.w;
+  }
 }
 
 export class QuorumKofN implements Quorum {
@@ -40,4 +44,20 @@ export class QuorumKofN implements Quorum {
     }
     return count >= this.k;
   }
+
+  get members(): readonly Quorum[] {
+    return this.subQuorums;
+  }
+
+  get threshold(): number {
+    return this.k;
+  }
+}
+
+export function isQuorumSingle(q: Quorum): q is QuorumSingle {
+  return q instanceof QuorumSingle;
+}
+
+export function isQuorumKofN(q: Quorum): q is QuorumKofN {
+  return q instanceof QuorumKofN;
 }

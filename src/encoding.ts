@@ -4,6 +4,13 @@ export function Uint8ArrayToBase64(data: Uint8Array | ArrayBuffer): string {
   return btoa(binary);
 }
 
+export function base64ToUint8Array(data: string): Uint8Array {
+  const binary = atob(data);
+  const output = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) output[i] = binary.charCodeAt(i);
+  return output;
+}
+
 export function hexToUint8Array(hex: string): Uint8Array {
   if (!/^[0-9a-fA-F]*$/.test(hex)) {
     throw new Error("Hex string contains invalid characters");
