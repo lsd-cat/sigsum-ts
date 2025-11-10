@@ -1,6 +1,6 @@
 {
   "name": "sigsum",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A Sigsum proof verifier for the browser.",
   "main": "dist/verify.js",
   "types": "dist/verify.d.ts",
@@ -25,12 +25,10 @@
   "bugs": "https://github.com/freedomofpress/sigsum-ts/issues",
   "devDependencies": {
     "typescript": "^5.9.3",
-    "vitest": "^4.0.8",
+    "vitest": "^4.0.5",
     "@vitest/coverage-v8": "^4.0.8",
     "eslint-plugin-simple-import-sort": "^12.1.1",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.2",
-    "vitest": "^4.0.5"
+    "typescript-eslint": "^8.46.2"
   },
   "dependencies": {
     "yargs": "^18.0.0"
