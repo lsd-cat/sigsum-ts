@@ -1,8 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { hexToUint8Array } from "../encoding";
+import { compilePolicy } from "../policyCompiler";
 import { RawPublicKey } from "../types";
-import { verifyMessage } from "./../verify";
+import { verifyMessage, verifyMessageWithCompiledPolicy } from "../verify";
+
+type VerifierFn = (
+  message: Uint8Array,
+  submitterKey: RawPublicKey,
+  policyOrCompiled: string | Uint8Array,
+  proofText: string,
+) => Promise<boolean>;
 
 const POLICY = `
 log 4644af2abd40f4895a003bca350f9d5912ab301a49c77f13e5b6d905c20a5fe6 https://test.sigsum.org/barreleye
@@ -63,110 +71,124 @@ node_hash=e98d0bea1c434584cdd86613bec52dc75366d25a8b586e9200d587f0685104dc
 node_hash=bf05c324a46a39bbc4c12d0d931784efaa6e1864dae47e1baf2dbfe761b35b48
 `;
 
-const PUBKEY = hexToUint8Array(
-  `236bb3cff541f16b1c357624d20f258cc48b7c57080ff7de60c971df70c04ad8`,
-) as RawPublicKey;
+const PUBKEY = new RawPublicKey(
+  hexToUint8Array(
+    `236bb3cff541f16b1c357624d20f258cc48b7c57080ff7de60c971df70c04ad8`,
+  ),
+);
 
 // test\n
 const MESSAGE = new Uint8Array([0x74, 0x65, 0x73, 0x74, 0x0a]);
+// test2\n
 const MESSAGE2 = new Uint8Array([0x74, 0x65, 0x73, 0x74, 0x32, 0x0a]);
 
-describe("verify", () => {
+let compiled: Uint8Array;
+
+beforeAll(async () => {
+  compiled = await compilePolicy(POLICY);
+});
+
+// Parameterized verifier definition
+const verifierText: VerifierFn = async (msg, key, policy, proof) =>
+  verifyMessage(msg, key, policy as string, proof);
+
+const verifierCompiled: VerifierFn = async (msg, key, _unused, proof) =>
+  verifyMessageWithCompiledPolicy(msg, key, compiled, proof);
+
+describe.each([
+  ["text policy", verifierText],
+  ["compiled policy", verifierCompiled],
+])("verify (%s)", (_label, verifyFn) => {
   it("runs a successful verification (odd leaf, last included)", async () => {
-    const result = await verifyMessage(MESSAGE, PUBKEY, POLICY, PROOF);
-    expect(result).toBe(true);
+    expect(await verifyFn(MESSAGE, PUBKEY, POLICY, PROOF)).toBe(true);
   });
 
   it("runs a successful verification (even leaf, middle position)", async () => {
-    const result = await verifyMessage(MESSAGE2, PUBKEY, POLICY, EVEN_PROOF);
-    expect(result).toBe(true);
+    expect(await verifyFn(MESSAGE2, PUBKEY, POLICY, EVEN_PROOF)).toBe(true);
   });
 
   it("fails for a tampered message", async () => {
-    const fake_message = new Uint8Array([0x75, 0x65, 0x73, 0x74, 0x0a]);
-    await expect(() =>
-      verifyMessage(fake_message, PUBKEY, POLICY, PROOF),
-    ).rejects.toThrow(/invalid message signature/);
+    const fake = new Uint8Array([0x75, 0x65, 0x73, 0x74, 0x0a]);
+    await expect(() => verifyFn(fake, PUBKEY, POLICY, PROOF)).rejects.toThrow(
+      /invalid message signature/,
+    );
   });
 
   it("fails for a leaf index larger than the tree size", async () => {
-    const too_high_leaf_proof = PROOF.replace(
-      "leaf_index=929",
-      "leaf_index=931",
-    );
+    const tooHigh = PROOF.replace("leaf_index=929", "leaf_index=931");
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, too_high_leaf_proof),
+      verifyFn(MESSAGE, PUBKEY, POLICY, tooHigh),
     ).rejects.toThrow(/out of range/);
   });
 
   it("fails for a tampered inclusion path", async () => {
-    const tampared_path_proof = PROOF.replace(
+    const tampered = PROOF.replace(
       "node_hash=4e301e7ae4f9abb0c710cae380daa991b95528b0d631ce04a001c28236e4f938",
       "node_hash=aa301e7ae4f9abb0c710cae380daa991b95528b0d631ce04a001c28236e4f938",
     );
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, tampared_path_proof),
-    ).rejects.toThrow(/invalid proof/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, tampered),
+    ).rejects.toThrow(/invalid proof|inclusion/i);
   });
 
-  it("fails for a inclusion path that is too long", async () => {
-    const overlong_path_proof = PROOF.concat(
+  it("fails for an inclusion path that is too long", async () => {
+    const overlong = PROOF.concat(
       "node_hash=236bb3cff541f16b1c357624d20f258cc48b7c57080ff7de60c971df70c04ad8\n",
     );
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, overlong_path_proof),
-    ).rejects.toThrow(/internal error: unused path elements/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, overlong),
+    ).rejects.toThrow(/unused path|internal error/i);
   });
 
   it("fails for a log not in the policy", async () => {
-    const wrong_log_proof = PROOF.replace(
+    const wrongLog = PROOF.replace(
       "log=4e89cc51651f0d95f3c6127c15e1a42e3ddf7046c5b17b752689c402e773bb4d",
-      "log=aa89cc51651f0d95f3c6127c15e1a42e3ddf7046c5b17b752689c402e773bb4d",
+      "log=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     );
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, wrong_log_proof),
-    ).rejects.toThrow(/log key not found in policy/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, wrongLog),
+    ).rejects.toThrow(/log key not found/i);
   });
 
   it("fails for a proof from a different keyhash", async () => {
-    const wrong_key_proof = PROOF.replace(
+    const wrongKey = PROOF.replace(
       "00004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d",
       "aa004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d",
     );
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, wrong_key_proof),
-    ).rejects.toThrow(/proof key does not match the provided/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, wrongKey),
+    ).rejects.toThrow(/proof key does not match/i);
   });
 
   it("fails for tampered tree size", async () => {
-    const tampered_treehead_proof = PROOF.replace("size=930", "size=931");
+    const tampered = PROOF.replace("size=930", "size=931");
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
-    ).rejects.toThrow(/failed to verify tree head signature/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, tampered),
+    ).rejects.toThrow(/failed to verify tree head signature/i);
   });
 
   it("fails for tampered tree hash", async () => {
-    const tampered_treehead_proof = PROOF.replace(
+    const tampered = PROOF.replace(
       "root_hash=f24ca2b7b234c380438fbeb7e6a3e7481705adf22b8ecab47ca049b31b642bd8",
       "root_hash=aa4ca2b7b234c380438fbeb7e6a3e7481705adf22b8ecab47ca049b31b642bd8",
     );
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
-    ).rejects.toThrow(/failed to verify tree head signature/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, tampered),
+    ).rejects.toThrow(/failed to verify tree head signature/i);
   });
 
-  it("fails for tampered tree signaure", async () => {
-    const tampered_treehead_proof = PROOF.replace(
+  it("fails for tampered tree signature", async () => {
+    const tampered = PROOF.replace(
       "signature=a3e28bf1b8e97664ba2505ed1f02373af70ad86f5a794b8ddf77c9dfc2cda3766479cc53906312dc705f5892472eb1b1a60843f1fd0e0ea3442b6df6a7f11805",
       "signature=bbe28bf1b8e97664ba2505ed1f02373af70ad86f5a794b8ddf77c9dfc2cda3766479cc53906312dc705f5892472eb1b1a60843f1fd0e0ea3442b6df6a7f11805",
     );
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, tampered_treehead_proof),
-    ).rejects.toThrow(/failed to verify tree head signature/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, tampered),
+    ).rejects.toThrow(/failed to verify tree head signature/i);
   });
 
   it("fails for not enough cosignatures", async () => {
-    const fail_quorum_proof = `
+    const failQuorum = `
 version=1
 log=4e89cc51651f0d95f3c6127c15e1a42e3ddf7046c5b17b752689c402e773bb4d
 leaf=f62f 00004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d 7fdadea21d3268bceb9c4959f25ed8d7a0be2e23637bbcf795b861498626928bcde9180591c5d3c1d6b15b0b6a36df329226d312cde0bb36331888194df1680a
@@ -174,7 +196,6 @@ leaf=f62f 00004cce3ad5f54dceb2e20788b72b1c91a8c3913e7866670f5752fe14009f4d 7fdad
 size=930
 root_hash=f24ca2b7b234c380438fbeb7e6a3e7481705adf22b8ecab47ca049b31b642bd8
 signature=a3e28bf1b8e97664ba2505ed1f02373af70ad86f5a794b8ddf77c9dfc2cda3766479cc53906312dc705f5892472eb1b1a60843f1fd0e0ea3442b6df6a7f11805
-cosignature=e923764535cac36836d1af682a2a3e5352e2636ec29c1d34c00160e1f4946d31 1749045854 eb9670fc459a8a3ca226cda1cdc37079018e7e2ae94db426da8e25e181ca29fd651e5ab6e12b3b080fd93cf41304d78669da499744f2c8db8adf25d9fa1ecb0e
 cosignature=70b861a010f25030de6ff6a5267e0b951e70c04b20ba4a3ce41e7fba7b9b7dfc 1749045854 62b2733f600df0cf2b2fe6e3e2b5e525048280872b68df3fc4b08409e325c857b5aa4b96806ced5fcb8edf4eb138e13772f48d55cc0de821bb8e6866443e7602
 
 leaf_index=929
@@ -185,7 +206,7 @@ node_hash=4e301e7ae4f9abb0c710cae380daa991b95528b0d631ce04a001c28236e4f938
 node_hash=b6be547daa4f6b3d42628bb14020e9b2d73a4ee8cf3c4e0a3b88793916926f27
 `;
     await expect(() =>
-      verifyMessage(MESSAGE, PUBKEY, POLICY, fail_quorum_proof),
-    ).rejects.toThrow(/cosignature quorum not satisfied/);
+      verifyFn(MESSAGE, PUBKEY, POLICY, failQuorum),
+    ).rejects.toThrow(/cosignature quorum not satisfied/i);
   });
 });

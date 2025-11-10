@@ -6,8 +6,8 @@ export function formatCheckpoint(
   treeHead: TreeHead,
   logKeyHash: KeyHash,
 ): string {
-  const origin = CheckpointNamePrefix + Uint8ArrayToHex(logKeyHash);
-  const rootHash = Uint8ArrayToBase64(treeHead.RootHash);
+  const origin = CheckpointNamePrefix + Uint8ArrayToHex(logKeyHash.bytes);
+  const rootHash = Uint8ArrayToBase64(treeHead.RootHash.bytes);
   const checkpointStr = `${origin}\n${treeHead.Size}\n${rootHash}\n`;
   return checkpointStr;
 }

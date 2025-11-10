@@ -1,3 +1,8 @@
+import {
+  evalQuorumBytecode,
+  importAndHashAll,
+  parseCompiledPolicy,
+} from "./compiledPolicy";
 import { parsePolicyText } from "./config";
 import { LeafNamespace } from "./constants";
 import {
@@ -14,16 +19,63 @@ import { Uint8ArrayToBase64 } from "./encoding";
 import { attachNamespace } from "./format";
 import { Policy } from "./policy";
 import { SigsumProof } from "./proof";
-import { Base64KeyHash, Hash, KeyHash, PublicKey, RawPublicKey } from "./types";
+import { Base64KeyHash, Hash, PublicKey, RawPublicKey } from "./types";
 
-export async function verifyMessage(
-  message: Uint8Array,
+async function verifyCommon(
+  message_hash: Uint8Array,
   submitterRawPublicKey: RawPublicKey,
-  policyText: string,
-  proofText: string,
+  proof: SigsumProof,
+  getLogKey: () => Promise<PublicKey>,
+  evalQuorum: () => Promise<boolean>,
 ): Promise<boolean> {
-  const message_hash = await hashMessage(message);
-  return verifyHash(message_hash, submitterRawPublicKey, policyText, proofText);
+  const submitterPublicKey = await importKey(submitterRawPublicKey);
+  const submitterKeyHash = await hashKey(submitterPublicKey);
+
+  // Step 1 — double hash (leaf data, then checksum)
+  const checksum: Hash = await hashMessage(message_hash);
+
+  // Step 2 — leaf key must match submitter key
+  if (
+    !constantTimeBufferEqual(proof.leaf.KeyHash.bytes, submitterKeyHash.bytes)
+  ) {
+    throw new Error("proof key does not match the provided one");
+  }
+
+  // Step 3 — verify leaf signature
+  if (
+    !(await verifySignature(
+      submitterPublicKey,
+      proof.leaf.Signature,
+      attachNamespace(LeafNamespace, checksum.bytes),
+    ))
+  ) {
+    throw new Error("invalid message signature");
+  }
+
+  // Step 4 — log signature
+  const logPub = await getLogKey();
+  if (
+    !(await verifySignedTreeHead(
+      proof.treeHead.SignedTreeHead,
+      logPub,
+      proof.logKeyHash,
+    ))
+  ) {
+    throw new Error("failed to verify tree head signature");
+  }
+
+  // Step 5 — quorum evaluation (different per policy type)
+  if (!(await evalQuorum())) {
+    throw new Error("cosignature quorum not satisfied");
+  }
+
+  // Step 6 — inclusion proof
+  return await verifyInclusionProof(
+    await proof.leaf.toLeaf(checksum).hashLeaf(),
+    proof.inclusion.LeafIndex,
+    proof.treeHead.SignedTreeHead.TreeHead,
+    proof.inclusion.Path,
+  );
 }
 
 export async function verifyHash(
@@ -32,88 +84,124 @@ export async function verifyHash(
   policyText: string,
   proofText: string,
 ): Promise<boolean> {
-  const submitterPublicKey: PublicKey = await importKey(submitterRawPublicKey);
-  const submitterKeyHash: KeyHash = await hashKey(submitterPublicKey);
   const policy: Policy = await parsePolicyText(policyText);
   const proof: SigsumProof = await SigsumProof.fromAscii(proofText);
 
-  // From https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/sigsum-proof.md
-  // Step 1 - remember the double hashig (the first hash is the leaf data, and the second the leaf checksum)
-  const checksum: Hash = await hashMessage(message_hash);
-
-  // Step 2
-  if (!constantTimeBufferEqual(proof.leaf.KeyHash, submitterKeyHash)) {
-    throw new Error("proof key does not match the provided one");
-  }
-
-  const log = policy.logs.get(
-    Uint8ArrayToBase64(proof.logKeyHash) as Base64KeyHash,
-  );
-
-  if (!log) {
-    throw new Error("log key not found in policy");
-  }
-
-  // Step 3 - verify leaf signature
-  if (
-    !(await verifySignature(
-      submitterPublicKey,
-      proof.leaf.Signature,
-      attachNamespace(LeafNamespace, checksum),
-    ))
-  ) {
-    throw new Error("invalid message signature");
-  }
-
-  // Step 4 - verify tree head log signature
-  // It should be fine to use the proof log keyhash value, because it must match the policy one, and we trust the policy
-  if (
-    !(await verifySignedTreeHead(
-      proof.treeHead.SignedTreeHead,
-      log.publicKey,
-      proof.logKeyHash,
-    ))
-  ) {
-    throw new Error(`failed to verify tree head signature`);
-  }
-
-  // Step 5 - verify witnesses cosignatures until the quorum is met
-  const present = new Set<Base64KeyHash>();
-  let quorum = false;
-  for (const [witnessKeyHash, entity] of policy.witnesses) {
-    const cosignature = proof.treeHead.Cosignatures[witnessKeyHash];
-    if (!cosignature) {
-      continue;
-    }
-
-    const valid = await verifyCosignedTreeHead(
-      proof.treeHead.SignedTreeHead.TreeHead,
-      entity.publicKey,
-      proof.logKeyHash,
-      cosignature,
+  async function getLogKey(): Promise<PublicKey> {
+    const keyHashB64 = new Base64KeyHash(
+      Uint8ArrayToBase64(proof.logKeyHash.bytes),
     );
+    const log = Base64KeyHash.lookup(policy.logs, keyHashB64);
+    if (!log) throw new Error("log key not found in policy");
+    return log.publicKey;
+  }
 
-    if (valid) {
-      present.add(witnessKeyHash);
-
-      quorum = policy.quorum.isQuorum(present);
-      if (quorum) {
-        break;
+  async function evalQuorum(): Promise<boolean> {
+    const present = new Set<Base64KeyHash>();
+    for (const [keyHash, entity] of policy.witnesses) {
+      const cosig = Base64KeyHash.lookup(proof.treeHead.Cosignatures, keyHash);
+      if (!cosig) continue;
+      if (
+        await verifyCosignedTreeHead(
+          proof.treeHead.SignedTreeHead.TreeHead,
+          entity.publicKey,
+          proof.logKeyHash,
+          cosig,
+        )
+      ) {
+        present.add(keyHash);
+        if (policy.quorum.isQuorum(present)) return true;
       }
     }
+    return false;
   }
 
-  if (!quorum) {
-    throw new Error(
-      `cosignature quorum not satisfied, got ${present.size} valid signatures`,
-    );
+  return verifyCommon(
+    message_hash,
+    submitterRawPublicKey,
+    proof,
+    getLogKey,
+    evalQuorum,
+  );
+}
+
+export async function verifyHashWithCompiledPolicy(
+  message_hash: Uint8Array,
+  submitterRawPublicKey: RawPublicKey,
+  compiledPolicy: Uint8Array,
+  proofText: string,
+): Promise<boolean> {
+  const proof = await SigsumProof.fromAscii(proofText);
+  const compiled = parseCompiledPolicy(compiledPolicy);
+
+  const logs = await importAndHashAll(compiled.logsRaw);
+  const witnesses = await importAndHashAll(compiled.witnessesRaw);
+
+  async function getLogKey(): Promise<PublicKey> {
+    const log = new Base64KeyHash(Uint8ArrayToBase64(proof.logKeyHash.bytes));
+
+    for (const { b64, pub } of logs) {
+      if (b64.equals(log)) {
+        return pub;
+      }
+    }
+
+    throw new Error("log key not found in compiled policy");
   }
 
-  // Step 6 - verify the actual inclusion proof
-  return await verifyInclusionProof(
-    await proof.leaf.toLeaf(checksum).hashLeaf(),
-    proof.inclusion.LeafIndex,
-    proof.treeHead.SignedTreeHead.TreeHead,
-    proof.inclusion.Path,
+  async function evalQuorum(): Promise<boolean> {
+    const present = new Uint8Array(witnesses.length);
+    for (const [i, w] of witnesses.entries()) {
+      const cosig = Base64KeyHash.lookup(proof.treeHead.Cosignatures, w.b64);
+      if (!cosig) continue;
+
+      if (
+        await verifyCosignedTreeHead(
+          proof.treeHead.SignedTreeHead.TreeHead,
+          w.pub,
+          proof.logKeyHash,
+          cosig,
+        )
+      ) {
+        present[i] = 1;
+      }
+    }
+    return evalQuorumBytecode(compiled.quorum, witnesses.length, present);
+  }
+
+  return verifyCommon(
+    message_hash,
+    submitterRawPublicKey,
+    proof,
+    getLogKey,
+    evalQuorum,
+  );
+}
+
+export async function verifyMessage(
+  message: Uint8Array,
+  submitterRawPublicKey: RawPublicKey,
+  policyText: string,
+  proofText: string,
+): Promise<boolean> {
+  return verifyHash(
+    (await hashMessage(message)).bytes,
+    submitterRawPublicKey,
+    policyText,
+    proofText,
+  );
+}
+
+export async function verifyMessageWithCompiledPolicy(
+  message: Uint8Array,
+  submitterRawPublicKey: RawPublicKey,
+  compiledPolicy: Uint8Array,
+  proofText: string,
+): Promise<boolean> {
+  return verifyHashWithCompiledPolicy(
+    (await hashMessage(message)).bytes,
+    submitterRawPublicKey,
+    compiledPolicy,
+    proofText,
   );
 }
