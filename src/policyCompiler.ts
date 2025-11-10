@@ -1,7 +1,9 @@
+// https://git.glasklar.is/nisse/sigsum-c/-/blob/main/tools/sigsum-compile-policy.c?ref_type=heads
+
 import { parsePolicyText } from "./config";
 import { base64ToUint8Array } from "./encoding";
 import { Entity, isQuorumKofN, isQuorumSingle, Policy, Quorum } from "./policy";
-import { Base64KeyHash } from "./types";
+import { Base64KeyHash, KeyHash, RawPublicKey } from "./types";
 
 const BYTECODE_ADD = 0x01;
 
@@ -22,8 +24,8 @@ type PreparedNode = WitnessNode | GroupNode;
 
 interface KeyEntry {
   encoded: Base64KeyHash;
-  hash: Uint8Array;
-  raw: Uint8Array;
+  hash: KeyHash;
+  raw: RawPublicKey;
 }
 
 const compareUint8Arrays = (a: Uint8Array, b: Uint8Array): number => {
@@ -32,26 +34,29 @@ const compareUint8Arrays = (a: Uint8Array, b: Uint8Array): number => {
   return a.length - b.length;
 };
 
-async function exportRawKey(entity: Entity): Promise<Uint8Array> {
-  const raw = (await crypto.subtle.exportKey(
-    "raw",
-    entity.publicKey,
-  )) as ArrayBuffer;
-  return new Uint8Array(raw);
+async function exportRawKey(entity: Entity): Promise<RawPublicKey> {
+  const rawBuffer = await crypto.subtle.exportKey("raw", entity.publicKey.key);
+  return new RawPublicKey(new Uint8Array(rawBuffer));
 }
 
 async function collectSortedEntries(
   map: Map<Base64KeyHash, Entity>,
 ): Promise<KeyEntry[]> {
   const entries: KeyEntry[] = [];
+
   for (const [encoded, entity] of map.entries()) {
+    const raw = await exportRawKey(entity);
+    const hash = new KeyHash(base64ToUint8Array(encoded.value));
+
     entries.push({
-      encoded,
-      hash: base64ToUint8Array(encoded),
-      raw: await exportRawKey(entity),
+      encoded, // Base64KeyHash
+      hash, // KeyHash
+      raw, // RawPublicKey
     });
   }
-  entries.sort((a, b) => compareUint8Arrays(a.hash, b.hash));
+
+  entries.sort((a, b) => compareUint8Arrays(a.hash.bytes, b.hash.bytes));
+
   return entries;
 }
 
@@ -110,7 +115,7 @@ function groupBytecodeSort(
     }
     blocks.sort(compareUint8Arrays);
     for (let i = 0; i < interval; i++) {
-      bytecode.set(blocks[i]!, offset + i * size);
+      bytecode.set(blocks[i], offset + i * size);
     }
   }
 
@@ -158,7 +163,7 @@ function prepareQuorum(
       kind: "group",
       members,
       threshold: quorum.threshold,
-      bytecodeSize: members[0]!.bytecodeSize,
+      bytecodeSize: members[0].bytecodeSize,
     };
   }
 
@@ -193,7 +198,7 @@ function compileQuorum(
   }
 
   const members = node.members;
-  const first = members[0]!;
+  const first = members[0];
   let left = node.bytecodeSize;
   let currentSize = first.bytecodeSize;
   left -= currentSize;
@@ -207,7 +212,7 @@ function compileQuorum(
   let startMember = 0;
 
   for (let i = 1; i < members.length; i++) {
-    const member = members[i]!;
+    const member = members[i];
     if (member.bytecodeSize > currentSize) {
       const interval = i - startMember;
       const nadd = interval - (startMember === 0 ? 1 : 0);
@@ -279,9 +284,10 @@ export async function compilePolicyFromParsed(
 
   const totalSize =
     4 +
-    logEntries.reduce((acc, entry) => acc + entry.raw.length, 0) +
-    witnessEntries.reduce((acc, entry) => acc + entry.raw.length, 0) +
+    logEntries.reduce((acc, entry) => acc + entry.raw.bytes.length, 0) +
+    witnessEntries.reduce((acc, entry) => acc + entry.raw.bytes.length, 0) +
     quorumBytecode.length;
+
   const output = new Uint8Array(totalSize);
   output[0] = 0;
   output[1] = logEntries.length;
@@ -290,13 +296,14 @@ export async function compilePolicyFromParsed(
 
   let offset = 4;
   for (const entry of logEntries) {
-    output.set(entry.raw, offset);
-    offset += entry.raw.length;
+    output.set(entry.raw.bytes, offset);
+    offset += entry.raw.bytes.length;
   }
   for (const entry of witnessEntries) {
-    output.set(entry.raw, offset);
-    offset += entry.raw.length;
+    output.set(entry.raw.bytes, offset);
+    offset += entry.raw.bytes.length;
   }
+
   output.set(quorumBytecode, offset);
 
   return output;

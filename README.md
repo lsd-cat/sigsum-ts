@@ -8,22 +8,9 @@ _Note: this library has not been audited, thus its security has not been indepen
 
 For more information on Sigsum visit the [sigsum.org](https://sigsum.org) or the [development repository](https://git.glasklar.is/sigsum/core/sigsum-go).
 
-## Branded crypto types
+## Nominal crypto types
 
-To avoid accidental misuse of cryptographic types, `sigsum-ts` uses [branded types](https://egghead.io/blog/using-branded-types-in-typescript). This approach wraps primitive types like `Uint8Array` and `string` in nominal type markers, ensuring that a `Hash`, `Signature`, `KeyHash`, and `RawPublicKey` are not interchangeable, even if they share the same underlying structure. This eliminates a common class of bugs where buffers are passed to the wrong verification or hashing function due to implicit typing.
-
-For example:
-
-```ts
-export type Hash = Branded<Uint8Array, "Hash">;
-export type Signature = Branded<Uint8Array, "Signature">;
-export type KeyHash = Branded<Uint8Array, "KeyHash">;
-export type Base64KeyHash = Branded<string, "Base64KeyHash">;
-export type RawPublicKey = Branded<Uint8Array, "RawPublicKey">;
-export type PublicKey = Branded<CryptoKey, "PublicKey">;
-```
-
-As a result, explicit casts or carefully constructed wrappers are required to use these types, which provides a helpful layer of safety when handling cryptographic material.
+To prevent accidental misuse of cryptographic material, `sigsum-ts` defines explicit nominal wrapper classes for each crypto type. Although many of them internally wrap a `Uint8Array` or a `string`, they are not interchangeable, and TypeScript will refuse to pass a `Hash` where a `Signature` is expected.
 
 ## Usage
 
@@ -53,42 +40,14 @@ const isValid = await verifyMessage(
 );
 ```
 
-## Tests
+## Experimental policy compilation & evaluation
 
-```bash
-$ npm run test
+This project includes a policy compiler and bytecode-based evaluator adapted from the [Sigsum C](https://git.glasklar.is/nisse/sigsum-c) reference implementation. The goal is to make policy verification compact and efficient, suitable for constrained environments with limited memory and binary size requirements (e.g., embedded devices).
 
-> sigsum-ts@0.1 test
-> vitest run --coverage
+Both the compiled format and the evaluation logic are experimental and unstable as they may change without notice as the Sigsum ecosystem evolves.
 
+References:
 
- RUN  v3.2.0 /Users/g/sigsum-ts
-      Coverage enabled with v8
-
- ✓ src/tests/econding.test.ts (8 tests) 3ms
- ✓ src/tests/proof.test.ts (18 tests) 8ms
- ✓ src/tests/crypto.test.ts (23 tests) 25ms
- ✓ src/tests/config.test.ts (17 tests) 36ms
- ✓ src/tests/verify.test.ts (12 tests) 46ms
-
- Test Files  5 passed (5)
-      Tests  78 passed (78)
-   Start at  19:39:46
-   Duration  472ms (transform 163ms, setup 0ms, collect 300ms, tests 118ms, environment 1ms, prepare 392ms)
-
- % Coverage report from v8
---------------|---------|----------|---------|---------|-------------------
-File          | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
---------------|---------|----------|---------|---------|-------------------
-All files     |     100 |      100 |     100 |     100 |
- config.ts    |     100 |      100 |     100 |     100 |
- constants.ts |     100 |      100 |     100 |     100 |
- crypto.ts    |     100 |      100 |     100 |     100 |
- encoding.ts  |     100 |      100 |     100 |     100 |
- format.ts    |     100 |      100 |     100 |     100 |
- policy.ts    |     100 |      100 |     100 |     100 |
- proof.ts     |     100 |      100 |     100 |     100 |
- types.ts     |     100 |      100 |     100 |     100 |
- verify.ts    |     100 |      100 |     100 |     100 |
---------------|---------|----------|---------|---------|-------------------
-```
+- [Sigsum and Tillitis TKey – Exploring transparency apps](https://www.glasklarteknik.se/post/exploring-transparency-apps-tkey/)
+- [sigsum-compile-policy.c](https://git.glasklar.is/nisse/sigsum-c/-/blob/main/tools/sigsum-compile-policy.c)
+- [verify.c](https://git.glasklar.is/nisse/sigsum-c/-/blob/main/lib/verify.c)

@@ -26,10 +26,15 @@ export function constantTimeBufferEqual(a: Uint8Array, b: Uint8Array): boolean {
 export async function importKey(
   rawPublicKey: RawPublicKey,
 ): Promise<PublicKey> {
-  // crypto.subtle.importKey is guaranteed to succeed or throw an error
-  return (await crypto.subtle.importKey("raw", rawPublicKey, "Ed25519", true, [
-    "verify",
-  ])) as PublicKey;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new Uint8Array(rawPublicKey.bytes),
+    "Ed25519",
+    true,
+    ["verify"],
+  );
+
+  return new PublicKey(key);
 }
 
 export async function verifySignature(
@@ -37,30 +42,34 @@ export async function verifySignature(
   signature: Signature,
   message: Uint8Array,
 ): Promise<boolean> {
-  if (signature.length !== 64) {
+  if (signature.bytes.length !== 64) {
     throw new Error("Signature must be 64 bytes for Ed25519.");
   }
 
   return await crypto.subtle.verify(
     { name: "Ed25519" },
-    key,
-    signature,
-    message,
+    key.key,
+    new Uint8Array(signature.bytes),
+    new Uint8Array(message),
   );
 }
 
 export async function hashKey(publicKey: PublicKey): Promise<KeyHash> {
-  const rawPublicKey = (await crypto.subtle.exportKey(
-    "raw",
-    publicKey,
-  )) as RawPublicKey;
-  return new Uint8Array(
-    await crypto.subtle.digest("SHA-256", rawPublicKey),
-  ) as KeyHash;
+  const rawBuffer = await crypto.subtle.exportKey("raw", publicKey.key);
+  const raw = new RawPublicKey(new Uint8Array(rawBuffer));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new Uint8Array(raw.bytes),
+  );
+  return new KeyHash(new Uint8Array(digest));
 }
 
 export async function hashMessage(message: Uint8Array): Promise<Hash> {
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", message)) as Hash;
+  return new Hash(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new Uint8Array(message)),
+    ),
+  );
 }
 
 export async function verifySignedTreeHead(
@@ -97,13 +106,13 @@ export async function verifyCosignedTreeHead(
 
 export async function hashInteriorNode(left: Hash, right: Hash): Promise<Hash> {
   const prefix = prefixInteriorNode;
-  const combined = new Uint8Array(1 + left.length + right.length);
+  const combined = new Uint8Array(1 + left.bytes.length + right.bytes.length);
   combined.set(prefix, 0);
-  combined.set(left, 1);
-  combined.set(right, 1 + left.length);
+  combined.set(left.bytes, 1);
+  combined.set(right.bytes, 1 + left.bytes.length);
 
   const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
-  const hash = new Uint8Array(hashBuffer) as Hash;
+  const hash = new Hash(new Uint8Array(hashBuffer));
 
   return hash;
 }
@@ -119,7 +128,7 @@ export async function verifyInclusionProof(
   }
 
   if (path.length === 0) {
-    if (!constantTimeBufferEqual(leafHash, treeHead.RootHash)) {
+    if (!constantTimeBufferEqual(leafHash.bytes, treeHead.RootHash.bytes)) {
       throw new Error("tree size is 1 but leaf does not match the root");
     }
   }
@@ -148,7 +157,7 @@ export async function verifyInclusionProof(
     throw new Error("internal error: unused path elements");
   }
 
-  if (!constantTimeBufferEqual(currentHash, treeHead.RootHash)) {
+  if (!constantTimeBufferEqual(currentHash.bytes, treeHead.RootHash.bytes)) {
     throw new Error("invalid proof: root hash does not match computed value");
   }
 

@@ -23,20 +23,31 @@ class PolicyImpl implements Policy {
   quorum!: Quorum;
 
   async addLog(entity: Entity): Promise<Base64KeyHash> {
-    const hash = Uint8ArrayToBase64(
-      await hashKey(entity.publicKey),
-    ) as Base64KeyHash;
-    if (this.logs.has(hash)) throw new Error(`Duplicate log key: ${hash}`);
+    const hash = new Base64KeyHash(
+      Uint8ArrayToBase64((await hashKey(entity.publicKey)).bytes),
+    );
+
+    for (const h of this.logs.keys()) {
+      if (h.value === hash.value) {
+        throw new Error(`Duplicate log key: ${hash.value}`);
+      }
+    }
+
     this.logs.set(hash, entity);
     return hash;
   }
 
   async addWitness(entity: Entity): Promise<Base64KeyHash> {
-    const hash = Uint8ArrayToBase64(
-      await hashKey(entity.publicKey),
-    ) as Base64KeyHash;
-    if (this.witnesses.has(hash))
-      throw new Error(`Duplicate witness key: ${hash}`);
+    const hash = new Base64KeyHash(
+      Uint8ArrayToBase64((await hashKey(entity.publicKey)).bytes),
+    );
+
+    for (const existing of this.witnesses.keys()) {
+      if (existing.value === hash.value) {
+        throw new Error(`Duplicate witness key: ${hash.value}`);
+      }
+    }
+
     this.witnesses.set(hash, entity);
     return hash;
   }
@@ -67,7 +78,7 @@ async function parseLog(state: ConfigState, args: string[]): Promise<void> {
   if (args.length < 1 || args.length > 2)
     throw new Error("log line must include pubkey and optional URL");
   const [hexKey, url] = args;
-  const key = await importKey(hexToUint8Array(hexKey) as RawPublicKey);
+  const key = await importKey(new RawPublicKey(hexToUint8Array(hexKey)));
   await state.policy.addLog({ publicKey: key, url });
 }
 
@@ -78,7 +89,7 @@ async function parseWitness(state: ConfigState, args: string[]): Promise<void> {
     );
   const [name, hexKey, url] = args;
   if (state.names.has(name)) throw new Error(`duplicate name: ${name}`);
-  const key = await importKey(hexToUint8Array(hexKey) as RawPublicKey);
+  const key = await importKey(new RawPublicKey(hexToUint8Array(hexKey)));
   const kh = await state.policy.addWitness({ publicKey: key, url });
   state.names.set(name, new QuorumSingle(kh));
 }

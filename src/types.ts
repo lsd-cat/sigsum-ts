@@ -1,15 +1,89 @@
-// https://egghead.io/blog/using-branded-types-in-typescript
-declare const __brand: unique symbol;
-type Brand<B> = { [__brand]: B };
+export abstract class ByteValue {
+  readonly bytes: Uint8Array;
 
-export type Branded<T, B> = T & Brand<B>;
+  protected constructor(bytes: Uint8Array) {
+    this.bytes = bytes;
+  }
+}
 
-export type Hash = Branded<Uint8Array, "Hash">;
-export type Signature = Branded<Uint8Array, "Signature">;
-export type KeyHash = Branded<Uint8Array, "KeyHash">;
-export type Base64KeyHash = Branded<string, "Base64KeyHash">;
-export type RawPublicKey = Branded<Uint8Array, "RawPublicKey">;
-export type PublicKey = Branded<CryptoKey, "PublicKey">;
+/**
+ * Represents a public key hash (32 bytes, SHA-256 of raw public key)
+ */
+export class KeyHash extends ByteValue {
+  constructor(bytes: Uint8Array) {
+    super(bytes);
+  }
+}
+
+/**
+ * Represents a Merkle tree hash (32 bytes)
+ */
+export class Hash extends ByteValue {
+  constructor(bytes: Uint8Array) {
+    super(bytes);
+  }
+}
+
+/**
+ * Ed25519 64-byte signature
+ */
+export class Signature extends ByteValue {
+  constructor(bytes: Uint8Array) {
+    super(bytes);
+  }
+}
+
+/**
+ * Raw Ed25519 public key (32 bytes)
+ */
+export class RawPublicKey extends ByteValue {
+  constructor(bytes: Uint8Array) {
+    super(bytes);
+  }
+}
+
+/**
+ * WebCrypto CryptoKey wrapper
+ */
+export class PublicKey {
+  readonly key: CryptoKey;
+
+  constructor(key: CryptoKey) {
+    this.key = key;
+  }
+}
+
+/**
+ * Base64 encoded KeyHash
+ */
+export class Base64KeyHash {
+  readonly value: string;
+
+  constructor(value: string) {
+    this.value = value;
+  }
+
+  /**
+   * Compare this key to another Base64KeyHash or a string.
+   * This allows Map lookup by value instead of object identity.
+   */
+  equals(other: Base64KeyHash | string): boolean {
+    return this.value === (typeof other === "string" ? other : other.value);
+  }
+
+  /**
+   * Helper: lookup in a Map<Base64KeyHash, T> by Base64KeyHash or string
+   */
+  static lookup<T>(
+    map: Map<Base64KeyHash, T>,
+    key: Base64KeyHash | string,
+  ): T | undefined {
+    for (const [k, v] of map.entries()) {
+      if (k.equals(key)) return v;
+    }
+    return undefined;
+  }
+}
 
 // https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/types/tree_head.go
 export interface Cosignature {
@@ -29,31 +103,31 @@ export interface SignedTreeHead {
 
 export interface CosignedTreeHead {
   SignedTreeHead: SignedTreeHead;
-  Cosignatures: { [key: Base64KeyHash]: Cosignature };
+  Cosignatures: Map<Base64KeyHash, Cosignature>;
 }
 
 // https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/pkg/types/leaf.go
 export class Leaf {
-  Checksum: Hash;
-  Signature: Signature;
-  KeyHash: KeyHash;
+  readonly checksum: Hash;
+  readonly signature: Signature;
+  readonly keyHash: KeyHash;
 
   constructor(checksum: Hash, signature: Signature, keyHash: KeyHash) {
-    this.Checksum = checksum;
-    this.Signature = signature;
-    this.KeyHash = keyHash;
+    this.checksum = checksum;
+    this.signature = signature;
+    this.keyHash = keyHash;
   }
 
   public async hashLeaf(): Promise<Hash> {
-    const leafBinary = new Uint8Array(129);
+    const leafBinary = new Uint8Array(1 + 32 + 64 + 32);
     leafBinary[0] = 0x0; // PrefixLeafNode
-    leafBinary.set(this.Checksum, 1);
-    leafBinary.set(this.Signature, 33);
-    leafBinary.set(this.KeyHash, 97);
 
-    return new Uint8Array(
-      await crypto.subtle.digest("SHA-256", leafBinary),
-    ) as Hash;
+    leafBinary.set(this.checksum.bytes, 1);
+    leafBinary.set(this.signature.bytes, 1 + 32);
+    leafBinary.set(this.keyHash.bytes, 1 + 32 + 64);
+
+    const digest = await crypto.subtle.digest("SHA-256", leafBinary);
+    return new Hash(new Uint8Array(digest));
   }
 }
 

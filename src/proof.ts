@@ -15,7 +15,7 @@ import {
 function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
   const signedTreeHead: Partial<SignedTreeHead> = {};
   const treeHead: Partial<TreeHead> = {};
-  const cosignatures: { [key: Base64KeyHash]: Cosignature } = {};
+  const cosignatures = new Map<Base64KeyHash, Cosignature>();
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -27,41 +27,50 @@ function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
 
       const [keyHashHex, timeStr, sigHex] = parts;
 
-      const keyHash = hexToBase64(keyHashHex) as Base64KeyHash;
-      const timestamp = parseInt(timeStr, 10);
-      const signature = hexToUint8Array(sigHex) as Signature;
+      const keyHash = new Base64KeyHash(hexToBase64(keyHashHex));
+      const timestamp = Number(timeStr);
+      const signature = new Signature(hexToUint8Array(sigHex));
 
-      if (isNaN(timestamp) || timestamp <= 0) {
+      if (!Number.isFinite(timestamp) || timestamp <= 0) {
         throw new Error("invalid cosignature timestamp");
       }
 
-      cosignatures[keyHash] = {
+      cosignatures.set(keyHash, {
         Timestamp: timestamp,
         Signature: signature,
-      };
-    } else {
-      const [key, value] = trimmed.split("=");
-      if (!key || !value) continue;
+      });
 
-      if (key === "tree_size" || key === "size") {
-        const size = parseInt(value);
-        if (!size || size <= 0) throw new Error("invalid tree size");
-        treeHead.Size = size;
-      } else if (key === "signature") {
-        signedTreeHead.Signature = hexToUint8Array(value) as Signature;
-      } else if (key === "root_hash") {
-        treeHead.RootHash = hexToUint8Array(value) as Hash;
+      continue;
+    }
+
+    // key=value handling
+    const [key, value] = trimmed.split("=");
+    if (!key || !value) continue;
+
+    if (key === "tree_size" || key === "size") {
+      const size = Number(value);
+      if (!Number.isFinite(size) || size <= 0) {
+        throw new Error("invalid tree size");
       }
+      treeHead.Size = size;
+      continue;
+    }
+
+    if (key === "signature") {
+      signedTreeHead.Signature = new Signature(hexToUint8Array(value));
+      continue;
+    }
+
+    if (key === "root_hash") {
+      treeHead.RootHash = new Hash(hexToUint8Array(value));
+      continue;
     }
   }
 
-  if (!treeHead.Size || !treeHead.RootHash) {
+  if (!treeHead.Size || !treeHead.RootHash)
     throw new Error("missing tree_head fields");
-  }
 
-  if (!signedTreeHead.Signature) {
-    throw new Error("missing tree head signature");
-  }
+  if (!signedTreeHead.Signature) throw new Error("missing tree head signature");
 
   signedTreeHead.TreeHead = treeHead as TreeHead;
 
@@ -97,7 +106,7 @@ export function parseInclusionProof(lines: string[]): InclusionProof {
       if (hash.length !== 32) {
         throw new Error("node_hash must be 32 bytes");
       }
-      path.push(hash as Hash);
+      path.push(new Hash(hash));
     }
   }
 
@@ -144,7 +153,9 @@ export class SigsumProof {
 
     const logLine = lines.find((l) => l.startsWith("log="));
     if (!logLine) throw new Error("missing log line");
-    const logKeyHash = hexToUint8Array(logLine.split("=")[1].trim()) as KeyHash;
+    const logKeyHash = new KeyHash(
+      hexToUint8Array(logLine.split("=")[1].trim()),
+    );
 
     const leafLineIndex = lines.findIndex((l) => l.startsWith("leaf="));
     if (leafLineIndex === -1) throw new Error("missing leaf line");
@@ -166,8 +177,8 @@ export class SigsumProof {
       keyHashIndex++;
       signatureIndex++;
     }
-    const keyHash = hexToUint8Array(leafParts[keyHashIndex]) as KeyHash;
-    const signature = hexToUint8Array(leafParts[signatureIndex]) as Signature;
+    const keyHash = new KeyHash(hexToUint8Array(leafParts[keyHashIndex]));
+    const signature = new Signature(hexToUint8Array(leafParts[signatureIndex]));
     const leaf = new ShortLeaf(keyHash, signature);
 
     const treeHeadStart = lines.findIndex(

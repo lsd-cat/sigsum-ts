@@ -108,4 +108,26 @@ describe("policyCompiler", () => {
       /Policy quorum too complex/i,
     );
   });
+
+  it("covers add-and-sort branch when member bytecode size increases", async () => {
+    const w = Array.from({ length: 70 }, (_, i) => {
+      const hex = i.toString(16).padStart(64, "0");
+      return `witness W${i} ${hex}`;
+    }).join("\n");
+
+    const members = Array.from({ length: 70 }, (_, i) => `W${i}`).join(" ");
+
+    const policy = `
+      log ${"11".repeat(32)}
+      ${w}
+      group g any ${members}
+      quorum g
+    `;
+
+    const compiled = await compilePolicy(policy);
+
+    expect(compiled).toBeInstanceOf(Uint8Array);
+    expect(compiled.length).toBeGreaterThan(4 + 32 * (1 + 70));
+    expect(compiled[3]).toBeGreaterThan(0);
+  });
 });

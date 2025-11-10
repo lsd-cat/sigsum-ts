@@ -30,9 +30,9 @@ node_hash=b6be547daa4f6b3d42628bb14020e9b2d73a4ee8cf3c4e0a3b88793916926f27
     expect(proof.inclusion.LeafIndex).toBe(898);
     expect(proof.inclusion.Path).toHaveLength(4);
     expect(
-      Uint8ArrayToHex(proof.treeHead.SignedTreeHead.TreeHead.RootHash),
+      Uint8ArrayToHex(proof.treeHead.SignedTreeHead.TreeHead.RootHash.bytes),
     ).toBe("22596c882dcdfbfaba693cb69b225c81a8a980e84b3ad5fc1fcd6a256ebdc235");
-    expect(Object.keys(proof.treeHead.Cosignatures)).toHaveLength(5);
+    expect(proof.treeHead.Cosignatures.size).toBe(5);
   });
 
   it("parses a full version 2 proof with cosignatures and inclusion proof", async () => {
@@ -61,9 +61,9 @@ node_hash=b6be547daa4f6b3d42628bb14020e9b2d73a4ee8cf3c4e0a3b88793916926f27
     expect(proof.inclusion.LeafIndex).toBe(898);
     expect(proof.inclusion.Path).toHaveLength(4);
     expect(
-      Uint8ArrayToHex(proof.treeHead.SignedTreeHead.TreeHead.RootHash),
+      Uint8ArrayToHex(proof.treeHead.SignedTreeHead.TreeHead.RootHash.bytes),
     ).toBe("22596c882dcdfbfaba693cb69b225c81a8a980e84b3ad5fc1fcd6a256ebdc235");
-    expect(Object.keys(proof.treeHead.Cosignatures)).toHaveLength(5);
+    expect(proof.treeHead.Cosignatures.size).toBe(5);
   });
 
   it("fails when version line is missing", async () => {
