@@ -11,6 +11,44 @@
     "lint": "npx eslint . --fix && npx prettier --write .",
     "clean": "rm -rf dist/*"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/verify.d.ts",
+      "default": "./dist/verify.js"
+    },
+    "./encoding": {
+      "types": "./dist/encoding.d.ts",
+      "default": "./dist/encoding.js"
+    },
+    "./format": {
+      "types": "./dist/format.d.ts",
+      "default": "./dist/format.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./compiledPolicy": {
+      "types": "./dist/compiledPolicy.d.ts",
+      "default": "./dist/compiledPolicy.js"
+    },
+    "./policy": {
+      "types": "./dist/policy.d.ts",
+      "default": "./dist/policy.js"
+    },
+    "./policyCompiler": {
+      "types": "./dist/policyCompiler.d.ts",
+      "default": "./dist/policyCompiler.js"
+    },
+    "./proof": {
+      "types": "./dist/proof.d.ts",
+      "default": "./dist/proof.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    }
+  },
   "keywords": [
     "sigsum",
     "ed25519",
