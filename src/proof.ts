@@ -47,7 +47,7 @@ function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
     const [key, value] = trimmed.split("=");
     if (!key || !value) continue;
 
-    if (key === "tree_size" || key === "size") {
+    if (key === "size") {
       const size = Number(value);
       if (!Number.isFinite(size) || size <= 0) {
         throw new Error("invalid tree size");
@@ -181,12 +181,10 @@ export class SigsumProof {
     const signature = new Signature(hexToUint8Array(leafParts[signatureIndex]));
     const leaf = new ShortLeaf(keyHash, signature);
 
-    const treeHeadStart = lines.findIndex(
-      (l) =>
-        (l.startsWith("tree_size=") && version === 2) ||
-        (l.startsWith("size=") && version === 1),
-    );
-    if (treeHeadStart === -1) throw new Error("missing tree head start");
+    const treeHeadStart = lines.findIndex((l) => l.startsWith("size="));
+    if (treeHeadStart === -1) {
+      throw new Error("missing tree head start");
+    }
 
     const treeHeadLines: string[] = [];
     for (let i = treeHeadStart; i < lines.length; i++) {
