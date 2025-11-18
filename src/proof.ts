@@ -12,7 +12,7 @@ import {
   TreeHead,
 } from "./types";
 
-function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
+export function parseCosignedTreeHead(lines: string[]): CosignedTreeHead {
   const signedTreeHead: Partial<SignedTreeHead> = {};
   const treeHead: Partial<TreeHead> = {};
   const cosignatures = new Map<Base64KeyHash, Cosignature>();
