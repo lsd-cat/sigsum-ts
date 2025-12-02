@@ -1,10 +1,10 @@
 {
-  "name": "sigsum",
+  "name": "@freedomofpress/sigsum",
   "version": "0.3.7",
   "description": "A Sigsum proof verifier for the browser.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/freedomofpress/sigstore-browser"
+    "url": "https://github.com/freedomofpress/sigsum-ts"
   },
   "main": "dist/verify.js",
   "types": "dist/verify.d.ts",
