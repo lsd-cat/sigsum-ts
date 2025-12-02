@@ -28,7 +28,7 @@ export async function importKey(
 ): Promise<PublicKey> {
   const key = await crypto.subtle.importKey(
     "raw",
-    new Uint8Array(rawPublicKey.bytes),
+    rawPublicKey.bytes.buffer as ArrayBuffer,
     "Ed25519",
     true,
     ["verify"],
@@ -49,26 +49,24 @@ export async function verifySignature(
   return await crypto.subtle.verify(
     { name: "Ed25519" },
     key.key,
-    new Uint8Array(signature.bytes),
-    new Uint8Array(message),
+    signature.bytes.buffer as ArrayBuffer,
+    message.buffer as ArrayBuffer,
   );
 }
 
 export async function hashKey(publicKey: PublicKey): Promise<KeyHash> {
   const rawBuffer = await crypto.subtle.exportKey("raw", publicKey.key);
-  const raw = new RawPublicKey(new Uint8Array(rawBuffer));
+  const raw = new RawPublicKey(rawBuffer);
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new Uint8Array(raw.bytes),
+    raw.bytes.buffer as ArrayBuffer,
   );
-  return new KeyHash(new Uint8Array(digest));
+  return new KeyHash(digest);
 }
 
 export async function hashMessage(message: Uint8Array): Promise<Hash> {
   return new Hash(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new Uint8Array(message)),
-    ),
+    await crypto.subtle.digest("SHA-256", message.buffer as ArrayBuffer),
   );
 }
 
@@ -112,7 +110,7 @@ export async function hashInteriorNode(left: Hash, right: Hash): Promise<Hash> {
   combined.set(right.bytes, 1 + left.bytes.length);
 
   const hashBuffer = await crypto.subtle.digest("SHA-256", combined);
-  const hash = new Hash(new Uint8Array(hashBuffer));
+  const hash = new Hash(hashBuffer);
 
   return hash;
 }

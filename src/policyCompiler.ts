@@ -35,8 +35,9 @@ const compareUint8Arrays = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 async function exportRawKey(entity: Entity): Promise<RawPublicKey> {
-  const rawBuffer = await crypto.subtle.exportKey("raw", entity.publicKey.key);
-  return new RawPublicKey(new Uint8Array(rawBuffer));
+  return new RawPublicKey(
+    await crypto.subtle.exportKey("raw", entity.publicKey.key),
+  );
 }
 
 async function collectSortedEntries(

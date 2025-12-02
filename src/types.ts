@@ -1,8 +1,8 @@
 export abstract class ByteValue {
   readonly bytes: Uint8Array;
 
-  protected constructor(bytes: Uint8Array) {
-    this.bytes = bytes;
+  protected constructor(bytes: Uint8Array | ArrayBuffer) {
+    this.bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   }
 }
 
@@ -10,7 +10,7 @@ export abstract class ByteValue {
  * Represents a public key hash (32 bytes, SHA-256 of raw public key)
  */
 export class KeyHash extends ByteValue {
-  constructor(bytes: Uint8Array) {
+  constructor(bytes: Uint8Array | ArrayBuffer) {
     super(bytes);
   }
 }
@@ -19,7 +19,7 @@ export class KeyHash extends ByteValue {
  * Represents a Merkle tree hash (32 bytes)
  */
 export class Hash extends ByteValue {
-  constructor(bytes: Uint8Array) {
+  constructor(bytes: Uint8Array | ArrayBuffer) {
     super(bytes);
   }
 }
@@ -28,7 +28,7 @@ export class Hash extends ByteValue {
  * Ed25519 64-byte signature
  */
 export class Signature extends ByteValue {
-  constructor(bytes: Uint8Array) {
+  constructor(bytes: Uint8Array | ArrayBuffer) {
     super(bytes);
   }
 }
@@ -37,7 +37,7 @@ export class Signature extends ByteValue {
  * Raw Ed25519 public key (32 bytes)
  */
 export class RawPublicKey extends ByteValue {
-  constructor(bytes: Uint8Array) {
+  constructor(bytes: Uint8Array | ArrayBuffer) {
     super(bytes);
   }
 }
@@ -127,7 +127,7 @@ export class Leaf {
     leafBinary.set(this.keyHash.bytes, 1 + 32 + 64);
 
     const digest = await crypto.subtle.digest("SHA-256", leafBinary);
-    return new Hash(new Uint8Array(digest));
+    return new Hash(digest);
   }
 }
 

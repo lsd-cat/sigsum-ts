@@ -2,6 +2,10 @@
   "name": "sigsum",
   "version": "0.3.6",
   "description": "A Sigsum proof verifier for the browser.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/freedomofpress/sigstore-browser"
+  },
   "main": "dist/verify.js",
   "types": "dist/verify.d.ts",
   "scripts": {
@@ -21,7 +25,6 @@
   "author": "Giulio B",
   "license": "MIT",
   "homepage": "https://github.com/freedomofpress/sigsum-ts#readme",
-  "repository": "github:freedomofpress/sigsum-ts",
   "bugs": "https://github.com/freedomofpress/sigsum-ts/issues",
   "devDependencies": {
     "typescript": "^5.9.3",
