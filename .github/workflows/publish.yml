@@ -1,5 +1,4 @@
-# .github/workflows/publish.yml
-name: publish
+name: Publish Package
 
 on:
   push:
