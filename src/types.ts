@@ -118,7 +118,16 @@ export class Leaf {
     this.keyHash = keyHash;
   }
 
-  public async hashLeaf(): Promise<Hash> {
+  /**
+   * Return the raw leaf bytes, prefixed with the leaf node identifier.
+   *
+   * Layout (129 bytes):
+   *   [0]            PrefixLeafNode (0x00)
+   *   [1..32]        checksum (32 bytes)
+   *   [33..96]       signature (64 bytes)
+   *   [97..128]      key hash (32 bytes)
+   */
+  public toBytes(): Uint8Array {
     const leafBinary = new Uint8Array(1 + 32 + 64 + 32);
     leafBinary[0] = 0x0; // PrefixLeafNode
 
@@ -126,7 +135,11 @@ export class Leaf {
     leafBinary.set(this.signature.bytes, 1 + 32);
     leafBinary.set(this.keyHash.bytes, 1 + 32 + 64);
 
-    const digest = await crypto.subtle.digest("SHA-256", leafBinary);
+    return leafBinary;
+  }
+
+  public async hashLeaf(): Promise<Hash> {
+    const digest = await crypto.subtle.digest("SHA-256", this.toBytes());
     return new Hash(digest);
   }
 }
