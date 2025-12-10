@@ -139,7 +139,7 @@ export class Leaf {
   }
 
   public async hashLeaf(): Promise<Hash> {
-    const digest = await crypto.subtle.digest("SHA-256", this.toBytes());
+    const digest = await crypto.subtle.digest("SHA-256", this.toBytes().buffer as ArrayBuffer);
     return new Hash(digest);
   }
 }
